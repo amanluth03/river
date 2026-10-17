@@ -27,7 +27,7 @@ A number that fails any step is not shown. Its cell says "—" and why (P1).
 
 ### `filings.py`: which filings, which period
 - Lists a fund's filings of the right forms, including `/A` amendments.
-- Takes the period from **each filing**, never EDGAR's company-level `fiscalYearEnd`, which is stale for Cliffwater (it says Dec 31; the filings say Mar 31). The mismatch is reported, not hidden (D18).
+- Takes the period from **each filing**, never EDGAR's company-level `fiscalYearEnd`, which is stale for Cliffwater (it says Dec 31; the filings say Mar 31). The mismatch is reported, not hidden (D26).
 - Cross-checks the index period against the document's own cover tag (`dei:DocumentPeriodEndDate`).
 
 ### `textnorm.py`: one way to read HTML
@@ -42,7 +42,7 @@ A number that fails any step is not shown. Its cell says "—" and why (P1).
 
 ### `extract/ixbrl.py`: reading tagged numbers
 - Reads inline-XBRL facts directly from the filing with lxml: concept, period, share-class dimensions, scale, sign, element id, and the row it sits in.
-- **Why not the SEC company-facts API:** it drops dimensional facts, so it can't see per-class tags. **Why not Arelle:** a heavy dependency for a handful of tags (D21).
+- **Why not the SEC company-facts API:** it drops dimensional facts, so it can't see per-class tags. **Why not Arelle:** a heavy dependency for a handful of tags (D29).
 
 ### `metrics/nav.py`: NAV candidates and their checks
 - **Interval funds:** Class I financial highlights, checked with the **NAV bridge** (beginning NAV + total from operations + distributions = ending NAV, within $0.01).

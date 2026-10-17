@@ -1,6 +1,26 @@
 # Session handoff (written 2026-10-16, end of session 1)
 
-Start a new session with: "Read CLAUDE.md and context/session_handoff.md, then continue the build order."
+Start a new session with: "Read CLAUDE.md and context/session_handoff.md, then start from Aman's last message."
+
+## START HERE: Aman's last message (verbatim instructions)
+
+> Change of pace: skip the per-module walkthroughs; I'll study afterward. Keep logging every decision in context/decisions.md as you go, keep all constants in one config file with their sources, and keep tests on real values. Before we submit, write docs/CODE_TOUR.md for me:
+> (1) a one-page map of the pipeline: which file and function does what;
+> (2) for each metric, the exact path one value takes: filing → function → normalization → confidence → UI/Excel cell;
+> (3) every hard-coded value or mapping, where it lives and its source;
+> (4) every place the code could break if a filing format changes, and what happens then;
+> (5) the 10 questions a skeptical technical interviewer is most likely to ask about this code, each answered in 2 to 3 sentences.
+>
+> I don't want what happened in this interview to happen to me with this take home: [interview transcript; see below]
+>
+> I've replaced CLAUDE.md, context/decisions.md and context/window2_transcript.md with updated versions. Read the Window 2 decisions (items 11 to 24) and the build order. Then build in that order: leverage, distribution yield, returns with labels, amendment flag, sheet protection, then fees or the fee-section fallback. Also again, to make sure you log decisions as you go.
+
+**The interview lesson (summary).** In a previous take-home review, the interviewer asked where a label in the UI came from (a tariff code shown as an "emergency tariff"). Aman couldn't answer: the AI assistant had hard-coded the mapping with no source, and he had "just rolled with it". Follow-ups: "how do you know that?", "what if that pattern changes, does the logic just break?" (yes), and "walk me through the code that links X to Y", which he couldn't do live. **For this repo that means:**
+- No literal without a cited source, all of them in one config file.
+- Every format-dependent parse documented, with what happens when it breaks (it must fail to "missing", never to a wrong value).
+- Aman must be able to open any value and trace it to the filing text and the function that read it. CODE_TOUR.md is the script for that.
+
+The full message, including the transcript, is saved locally (gitignored, not submitted) at `.superpowers/aman_last_message_session1.md`.
 
 ## Where things stand
 
@@ -57,7 +77,7 @@ Also from CLAUDE.md, items 14, 18, 21 and 22:
   - `apex.py`: `COLUMNS`
 - **Unsourced assumption to verify first: KREF `* 1000`.** It assumes the equity row is in thousands. Find the caption text in KREF's 10-K table (e.g. "in thousands") and cite it, or derive the multiplier from the caption. (Aman's last interview went badly over a hard-coded label nobody could source.)
 - **Tests on real values:** small fixtures cut from cached filings in `tests/fixtures/` (the cutter script is in the old session scratchpad; recreate as needed). Test-first; watch the test fail.
-- **Decision log gap:** Aman's new `decisions.md` dropped the earlier technical rows (gate, hash cache, lxml, periods from filings, find hint, computed-value confidence, build order). They're in `git show f2068a6:context/decisions.md`. Ask Aman before re-adding them, and if yes, add them after his rows under "Technical decisions". `how_it_works.md` refers to them by their old numbers (D18, D21, D26).
+- **Decision log:** rows 1–22 are Aman's (client and product decisions; Dana's Window 2 answers are rows 9–22). Rows 23–34 are the restored technical decisions (old number + 8): 23 hard verification gate, 24 hash cache, 25 fixed pipeline, 26 periods from filings, 27 UI, 28 build order, 29 lxml, 30 User-Agent, 31 `.env`, 32 GBDC (superseded by 13), 33 computed-value confidence, 34 find hint. Append new rows from 35.
 
 ## Filing facts already found (use for milestone 2)
 

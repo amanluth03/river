@@ -2,7 +2,7 @@
 
 Context for Claude Code. Read this whole file before writing anything.
 
-Source material lives in `context/`: `handoff_notes.md` (the original brief) and `window1_transcript.md` (the full client conversation). This file is the summary and wins where they differ. Consult the sources when you need the client's exact words, for example when writing the docs.
+Source material lives in `context/`: `handoff_notes.md` (the original brief), `window1_transcript.md` and `window2_transcript.md` (the full client conversations). This file is the summary and wins where they differ. Consult the sources when you need the client's exact words, for example when writing the docs.
 
 ## First principles (the tie-breaker for every decision)
 
@@ -61,7 +61,40 @@ These are requirements, not suggestions.
 7. **KREF stays in, flagged** as not a like-for-like peer, with a note that the CIO should decide whether it belongs.
 8. **Normalization is explicit and documented.** Every conversion (cumulative to annualized, gross to net, leverage definition, fiscal-year lag) is recorded and visible next to the value.
 9. **Users:** a credit analyst runs it each quarter and PMs review the output. **No command line, no config files, and IT won't install developer tools.** The analyst needs a simple UI; the repo still needs a one-command local run for River's reviewers.
-10. **Leverage:** the table has always used D/E, but the CIO wants more. Dana asked River for a recommendation (see proposal below).
+10. **Leverage:** the table has always used D/E, but the CIO wants more. Dana asked River for a recommendation; approved in Window 2 (see below).
+
+## Decisions confirmed by the client (Window 2)
+
+Also requirements. Where these differ from anything above, these win.
+
+11. **As-of reading confirmed:** each fund's latest report covering a period ending on or before Dec 31, 2025, even if filed later. Store both period-end and filing date.
+12. **Golub returns:** show the reported figure, labeled **"Return on average net assets"**, and marked **"Not directly comparable"** to the other funds' NAV total return. It must not look like the same measure in the same row. **Do not compound it into 3Y/5Y** (drops our earlier plan).
+13. **Leverage:** two clearly labeled rows. **Economic leverage (debt-to-equity)**: total debt, including preferred shares that act like debt, divided by net assets. **Regulatory leverage (asset coverage)**: as reported under the 1940 Act, with a note "Not applicable: KREF is not a 1940 Act fund". Dana will show this format to the CIO.
+14. **Apex Ridge 1Y:** the reported figure is official and goes in the deck. Keep flagging the 22 to 28 bps compounding gap in the exceptions output. Dana also wants a **plain-English explanation** of what the two calculations do differently (no math). Draft it as a short note for the output and the brief; don't claim a cause as fact.
+15. **Missing values are labeled, never blank.** For example, the interval funds' 3Y return shows **"Not reported by fund"**. A blank looks like a data error. Apply this rule to every missing value, with a specific reason.
+16. **Distribution yield = trailing 12 months of distributions ÷ period-end NAV,** the same as Apex Ridge's own. If a fund's filings don't cover 12 months, flag it and show the period actually used. For the interval funds this likely means adding two semi-annual reports' per-share distributions: label it as computed and cite both filings.
+17. **Excel:** a new workbook is fine if the layout matches the deck exactly (same rows, same order). **Protect the sheets** in the export; the locked template existed to stop accidental edits.
+18. **KREF label:** exactly **"Book value per share"**, never "NAV per share", anywhere it appears.
+19. **PM sign-off** stays outside the tool for v1. Recording it in the tool is a later phase. Don't build it.
+20. **Amendment tracking (new requirement):** on every run, check each fund's EDGAR filing index for amendments (forms ending in `/A`) to any filing whose values we use. If one exists, flag those values as "Superseded by amendment: re-check" in the output and exceptions list, and apply the rule that the amendment wins once it's read. v1 may flag only and let the analyst re-pull. Cliffwater's two N-CSRS/A amendments for the 9/30/23 period make a good test case for detection, even though that period is outside the window.
+
+### End of Window 2 (also confirmed)
+
+21. **Leverage format approved as drafted.** Apex Ridge's regulatory leverage cell shows **"Not in client data"** (Dana will ask their fund accountant for future quarters). **Filing links on every cell are mandatory**; compliance needs them.
+22. **Apex Ridge 1Y gap note:** put this in the output (exceptions list and a footnote on Apex's 1Y cell), framed as: the reported 1Y is official; the gap of about 24 bps is consistent every quarter, which behaves like a fixed annual cost counted in the 1-year figure but not the quarterly figures (likely a different share class or fee load, or a fee charged once a year). **"Fund accountant to confirm."** Never state the cause as fact.
+23. **Fees fallback:** if fee terms can't be verified, show **"Not extracted in v1"** with a link that lands **as close to the fee section as possible** (the page or section of the prospectus, such as the fee table or "Management Fee" section). If no section can be located, the link plus a note "Fee terms are in the prospectus narrative" is acceptable. A bare link to a whole filing is not.
+24. **Window 3 = review of the real numbers:** the full table with leverage populated, the gap note, and how it all holds together.
+
+## Build order after Window 2 (time is tight)
+
+1. Leverage (two rows)
+2. Distribution yield (TTM ÷ period-end NAV)
+3. Returns with the labels above (Golub: different measure, not comparable; interval funds: 3Y "Not reported by fund")
+4. Amendment detection flag
+5. Sheet protection on the export
+6. Fees only if time remains; otherwise "Not extracted in v1" with a section-level link (see 23)
+
+Window 3 is a review with Dana of the leverage format and the compounding-gap explanation, together.
 
 ## Design rules (follow strictly)
 
@@ -75,7 +108,7 @@ These are requirements, not suggestions.
 - **EDGAR etiquette:** set a User-Agent with a name and contact email from an environment variable (`SEC_USER_AGENT`); stay under 10 requests per second; cache every downloaded filing locally by accession number so reruns are fast and reproducible.
 - **Apex Ridge data quirk:** in `apex_ridge_fund_data.csv`, compounding the four quarterly (QTD) returns gives a 1Y figure 22 to 28 bps higher than the reported `net_return_1y_pct`, in every quarter (Q4 2025: 10.55% compounded vs 10.31% reported). Use the reported value, show the discrepancy in the exceptions output, and don't "fix" it. It's an open question for the client.
 
-## Leverage proposal (to confirm with the client)
+## Leverage (approved by the client in Window 2)
 
 Report both, side by side, and say which applies to each fund:
 - **Economic leverage:** total debt (including mandatory redeemable preferred where present) divided by net assets. Comparable across all four funds, KREF included, and matches Apex Ridge's `leverage_ratio_dte`.

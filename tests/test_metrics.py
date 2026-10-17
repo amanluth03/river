@@ -186,6 +186,9 @@ def test_final_pass_labels_and_links(bundle):
     takix, gbdc = cell(bundle, "incentive_fee", "TAKIX"), cell(bundle, "incentive_fee", "GBDC")
     assert "incentive fee" in takix.citation.quote and "incentive fee" in gbdc.citation.quote.lower()
     assert takix.citation.url != cell(bundle, "management_fee", "TAKIX").citation.url
+    # The links land on the incentive-fee sentences themselves (text fragments of those sentences).
+    assert takix.citation.url.endswith("#:~:text=the%20Fund%20pays%20its%20Adviser%20an%20incentive%20fee")
+    assert gbdc.citation.url.endswith("#:~:text=The%20income%20and%20capital%20gains%20incentive%20fee%20calculation")
     assert "agree within 0.05x" in cell(bundle, "leverage_economic", "TAKIX").check
     assert cell(bundle, "leverage_regulatory", "CCLFX").note == "421.1% (computed, low confidence)"
     assert any(i.kind == "check_failed" and i.fund == "CCLFX" and i.metric == "leverage_regulatory"
@@ -193,3 +196,27 @@ def test_final_pass_labels_and_links(bundle):
     apex_gaps = [p for p in bundle.trend["Apex Ridge"] if p.value is None]
     assert all(p.gap == "Not in client data (CSV starts Q1 2024)" for p in apex_gaps)
     assert cell(bundle, "distribution_yield", "GBDC").note == "TTM ÷ NAV"  # Q4 2025: no specials in the window
+
+
+def test_gbdc_item5_quarters_read_and_agree_with_fy2025(tmp_path):
+    """GBDC's 10-K Item 5 quarterly distributions declared per share. FY2025's quarters sum to the tagged
+    fiscal-year total (1.65), so the Q4 2025 yield keeps its fiscal-year route; FY2024's (1.94 vs 1.89, a
+    weighted-average-share total in the merger year) would switch to quarters (decision 83)."""
+    from datetime import date
+    from decimal import Decimal
+    from tests.test_pipeline import FakeEdgar
+    from benchmark import config
+    from benchmark.cache import Cache
+    from benchmark.filings import list_filings
+    from benchmark.metrics.common import FundData
+    from benchmark.metrics.distributions import _item5_quarters
+    cache = Cache(tmp_path / "cache")
+    edgar = FakeEdgar(cache)
+    gbdc = {f.ticker: f for f in config.load_funds()}["GBDC"]
+    found = list_filings(edgar.submissions(gbdc.cik), gbdc.forms, since=date(2024, 3, 31))
+    data = FundData(fund=gbdc, filings=found, fetch=lambda f: edgar.fetch(gbdc.cik, f.accession, f.primary_doc),
+                    cache=cache, as_of=date(2025, 12, 31), nav={}, nav_cell=None)
+    quarters = _item5_quarters(data)
+    fy25 = [quarters[d].value for d in (date(2024, 12, 31), date(2025, 3, 31), date(2025, 6, 30), date(2025, 9, 30))]
+    assert fy25 == [Decimal("0.48"), Decimal("0.39"), Decimal("0.39"), Decimal("0.39")] and sum(fy25) == Decimal("1.65")
+    assert all(c.verified for c in quarters.values())

@@ -4,7 +4,7 @@ Pulls competitor filings from SEC EDGAR, extracts benchmark metrics, checks ever
 
 **Rule one: a gap beats a wrong number.** A value appears only if its source text was found verbatim in the cached filing and the number was read back out of that text. A computed value (leverage, distribution yield) appears only if every input passed that check. Otherwise the cell says what is missing and why.
 
-**Validation strategy:** how each number is checked, reconciled and scored, cell by cell: [docs/technical_approach.md#validation-strategy](docs/technical_approach.md#validation-strategy).
+**[Validation strategy](docs/technical_approach.md#validation-strategy):** how each number is checked, reconciled and scored. Full validation tables, cell by cell: [docs/validation_appendix.md](docs/validation_appendix.md).
 
 ## Status (after Window 3)
 

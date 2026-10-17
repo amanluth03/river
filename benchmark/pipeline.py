@@ -133,7 +133,8 @@ def _nav_trend(fund, records, read, window, issues) -> list[ValueRecord]:
 
 
 def _nav_cell(fund, records, as_of, issues) -> ValueRecord:
-    shown = [r for r in records.values() if r.status == "ok"]
+    # The latest period with a value, or with a same-filing conflict (shown for the PM, nothing selected).
+    shown = [r for r in records.values() if r.status in ("ok", "conflict")]
     if not shown:
         failed = next(iter(records.values()), None)
         reason = failed.reason if failed else "No NAV table or tag found in the filings."

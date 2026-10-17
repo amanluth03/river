@@ -31,6 +31,11 @@ def alert(rec: ValueRecord) -> str | None:
     return None
 
 
+def _shown(value, unit: str) -> str:
+    """A conflict candidate's value in its row's unit ($ for NAV, % for returns, x for ratios)."""
+    return {"usd": f"${value:,.2f}", "pct": f"{value}%", "ratio": f"{value}x"}.get(unit, str(value))
+
+
 def cell_text(rec: ValueRecord) -> str:
     """Everything the table shows for one value, as text. The UI, Excel and Word all use this content,
     so no export is a "clean" version: amendment flags, conflicts, lags, computed notation all appear."""
@@ -41,7 +46,7 @@ def cell_text(rec: ValueRecord) -> str:
             gap += f" · {FEE_LINK_TEXT}"  # client, W3: the link is visible in the cell (the cell is the link)
         lines.append(gap)
         if rec.status == "conflict":
-            lines += [f"{c.value}% · {c.citation.section} ({c.citation.form} {c.citation.accession})"
+            lines += [f"{_shown(c.value, rec.unit)} · {c.citation.section} ({c.citation.form} {c.citation.accession})"
                       for c in rec.candidates]
     else:
         head = f"{rec.label}: {rec.display()}" if rec.label else rec.display()

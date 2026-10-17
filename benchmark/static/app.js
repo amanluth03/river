@@ -68,7 +68,7 @@ function cellHtml(rec, metric, fund) {
   const amendHtml = amended ? `<span class="amended">${esc(amended)}</span>` : "";
   if (rec.status === "conflict") {
     const both = rec.candidates.map((c) =>
-      `<span class="cand">${esc(Number(c.value).toFixed(2))}% · ${esc(c.citation.section.split(":")[0])}</span>`).join("");
+      `<span class="cand">${esc(fmt({value: c.value, unit: rec.unit}))} · ${esc(c.citation.section.split(":")[0])}</span>`).join("");
     const lag = rec.lag_quarters ? `<span class="flag">as of ${shortDate(rec.period_end)} · ${rec.lag_quarters}Q lag</span>` : "";
     return `<td ${attrs} title="${esc(rec.reason)}">${amendHtml}<span class="conflict">${esc(rec.gap)}</span>${both}${lag}</td>`;
   }

@@ -28,9 +28,13 @@ def test_amendment_with_different_value_wins_and_is_low():
     assert "10.77" in rec.resolution and "10.78" in rec.resolution and "amendment" in rec.resolution
 
 
-def test_two_values_in_one_filing_flagged_for_pm():
+def test_two_values_in_one_filing_show_both_and_choose_neither():
+    """Client, W3 (decision 56), now for every row: a same-filing disagreement is the PM's call."""
     rec = resolve([cand("10.77", "SAME", date(2025, 12, 5)), cand("10.70", "SAME", date(2025, 12, 5))])
-    assert "pm_review" in rec.flags and rec.confidence == "low"
+    assert rec.status == "conflict" and rec.value is None and rec.confidence is None
+    assert rec.gap == "Conflict: PM to choose"
+    assert sorted(str(c.value) for c in rec.candidates) == ["10.70", "10.77"]
+    assert rec.citation.quote == ""  # links the filing, quotes neither value
 
 
 def test_single_verified_with_reconciliation_is_high():
@@ -50,3 +54,10 @@ def test_failed_reconciliation_is_low():
 def test_nothing_verified_is_not_shown():
     rec = resolve([cand("10.77", "A-1", date(2025, 12, 5), verified=False, reason="quote not found verbatim")])
     assert rec.status == "not_verified" and rec.value is None and "verbatim" in rec.reason
+
+
+def test_nav_conflict_cell_shows_both_dollar_values():
+    from benchmark.export_excel import cell_text
+    rec = resolve([cand("10.77", "SAME", date(2025, 12, 5)), cand("10.70", "SAME", date(2025, 12, 5))])
+    text = cell_text(rec)
+    assert text.startswith("Conflict: PM to choose") and "$10.77" in text and "$10.70" in text

@@ -4,7 +4,7 @@
 
 ## The problem
 
-Every quarter, an analyst spends 6 to 8 hours reading four competitors' SEC filings and typing numbers into a locked spreadsheet. Nothing checks the typing, and last year a misread basis point reached a board deck. What matters is whether every number in front of the board can be traced to its page, and whether the process catches what an analyst would miss. As Dana put it: "Speed is expected. Accuracy he will remember."
+Every quarter, an analyst spends 6 to 8 hours reading four competitors' SEC filings and typing numbers into a locked spreadsheet. Nothing checks the typing, and last year a misread basis point reached a board deck. Saving those hours is expected. What matters is whether every number in front of the board can be traced to its page, and whether the process catches what an analyst would miss.
 
 ## What the first run caught (as of December 31, 2025)
 
@@ -32,7 +32,7 @@ Outputs: the review page; a locked Excel workbook in the deck's exact layout, tr
 
 Dana named them: a broken citation, after which PMs trust none of it; and any step that looks like IT work, after which the tool goes unused.
 
-- **Citations:** every citation is re-verified against its stored filing on every run. Automated tests check that every cell links to a filing and that each fee link targets text found only once in the document; each fee link was also clicked through in a real browser.
+- **Citations:** every citation is re-verified against its stored filing on every run. Automated tests check that every cell links to a filing and that each fee link targets text found only once in the document; the four management-fee links were also clicked through in a real browser.
 - **Usability:** the analyst picks a quarter and clicks Run; nothing to edit. Today the page itself is started with a command, so during the pilot River starts it. For production, a link or one-click launcher replaces that step, decided with Apex Ridge's operations lead.
 
 ## Tradeoffs we made for the timeline

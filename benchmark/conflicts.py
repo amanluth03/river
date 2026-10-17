@@ -5,6 +5,7 @@ Rules (decision 6): equal values agree; otherwise the most recently filed docume
 same filing have no rule, so they go to the PM. Nothing is resolved silently.
 """
 from .confidence import score
+from .config import CONFLICT_PM_CHOOSE
 from .records import Candidate, ValueRecord
 
 
@@ -28,9 +29,17 @@ def resolve(cands: list[Candidate], label: str | None = None) -> ValueRecord:
         same_filing = {c.citation.accession for c in verified if c.value != latest.value} & {latest.citation.accession}
         others = "; ".join(_describe(c) for c in verified if c is not latest)
         if same_filing:
-            flags.append("pm_review")
-            resolution = (f"Ambiguous: one filing shows different values ({others}; {_describe(latest)}). "
-                          f"Showing {latest.value} provisionally; PM must choose.")
+            # Client, W3 (decision 56), for every row: one filing contradicting itself is the PM's call.
+            # Show both, select neither: no value, no confidence, a citation that quotes neither.
+            listed = "; ".join(_describe(c) for c in verified)
+            neutral = latest.citation.model_copy(update={
+                "section": "Both sources below; neither selected", "quote": "", "row_label": None,
+                "column_label": None, "column_header": None, "char_offset": None, "find_match": None,
+                "find_total": None})
+            return ValueRecord(value=None, status="conflict", reason=f"{CONFLICT_PM_CHOOSE}: {listed}.",
+                               citation=neutral, flags=["conflict"],
+                               resolution=f"One filing shows different values: {listed}. PM to choose.",
+                               **{**base, "candidates": verified})
         else:
             flags.append("conflict")
             rule = "the amendment supersedes the original" if latest.is_amendment else "the more recent filing wins"

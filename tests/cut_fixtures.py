@@ -47,7 +47,8 @@ FIXTURES = {
          "The income and capital gains incentive fee calculation"]),
     "gbdc_10k_2025.html": (
         "1476765/000147676525000096/gbdc-20250930.htm",
-        ["Total return based on average net asset value", "Dividends and distributions declared per common share"], []),
+        ["Total return based on average net asset value", "Dividends and distributions declared per common share",
+         "Fiscal year ended September 30, 2025"], []),
     "kref_10k_2025.html": (
         "1631596/000162828026005092/kref-20251231.htm",
         ["Book value per share", "Secured term loan, net", "Dividends Declared per Share of Common Stock",

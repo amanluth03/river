@@ -174,7 +174,9 @@ LEVERAGE_ROWS = {
         # "Secured credit facilities" in TAKIX-A25; "Secured credit facility" in N-CSR 0001725472-25-000003 (2024).
         "debt": [r"^Secured credit facilit(y|ies)", r"^Mandatory redeemable preferred shares", r"^Note-on-note loans"],
     },
-    "GBDC": {  # GBDC-Q126 Consolidated Statements of Financial Condition ("Debt $ 4,903,076" = principal)
+    "GBDC": {  # GBDC-Q126 Consolidated Statements of Financial Condition. "Debt $ 4,903,076" is carrying value: the
+        # 10-Q says it "Represents principal outstanding plus unamortized premium and / or unaccreted original
+        # issue discount" and is "inclusive of an adjustment for the change in fair value of an effective hedge".
         "equity": r"^Total Net Assets",
         "debt": [r"^Debt$"],
     },
@@ -235,6 +237,14 @@ GBDC_SPECIALS_QUOTES = [
     "stockholders on June 27, 2024 and September 13, 2024, respectively. The remaining special distribution was "
     "paid on December 13, 2024",
 ]
+# GBDC per-quarter distributions declared per share: 10-K Item 5 table ("Period ... Distributions Declared",
+# rows "Fiscal year ended September 30, 2024" then "Fourth quarter ... $ 0.44" etc.; GBDC-K24 and GBDC-K25).
+# Used when a fiscal-year total differs from the sum of its quarters: the FY2024 statement total ($1.89) is per
+# weighted-average share (highlights footnote (1)) in the year of the GBDC 3 merger, while the quarters declared
+# per share sum to $1.94 (decision 83). Distributions are the table's last column ("Distributions Declared").
+GBDC_QUARTERS_YEAR_ROW = r"^Fiscal year ended (\w+ \d{1,2}, \d{4})$"
+GBDC_QUARTERS_LAST_HEADER = "Distributions Declared"
+GBDC_QUARTER_NUMBER = {"First quarter": 1, "Second quarter": 2, "Third quarter": 3, "Fourth quarter": 4}
 GBDC_SPECIALS = [("2024-06-27", "0.05", "special"), ("2024-09-13", "0.05", "special"),
                  ("2024-12-13", "0.05", "special"), ("2024-12-13", "0.04", "supplemental")]
 # A fiscal year or a trailing year is 365 or 366 days between context start and end; 360-370 allows

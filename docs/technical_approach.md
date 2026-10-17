@@ -2,7 +2,7 @@
 
 *For Apex Ridge's technical counterpart. Prepared by River Technologies. Figures are from the run as of December 31, 2025. Appendices A to D, with the full validation tables, are in [docs/validation_appendix.md](validation_appendix.md).*
 
-## What the system does
+## Architecture and data flow
 
 On a local review page, the analyst picks a quarter-end and presses **Run**. The system downloads each competitor's SEC filings for the eight quarters up to that date, extracts the board-deck metrics, checks each value against its filing, and places them beside Apex Ridge's own data. Outputs: the page, a protected Excel workbook in the deck's layout and a Word report, with a confidence level and source link on every cell. The governing rule: **a gap beats a wrong number**. A value is shown only if the system can prove it is in the filing; otherwise the cell is a labeled gap with the reason. No cell is blank or estimated.
 
@@ -61,18 +61,35 @@ Low values are always listed in Exceptions. Custom metrics are capped at Medium:
 
 **Tests:** 187 automated tests run offline on verbatim extracts of the real filings, including: every shown value re-passes the gate, no cell is blank, every cell links to a filing, and Word cells match Excel cells.
 
-## Decisions, normalizations and limits
+## Key decisions and reasoning
 
-Every decision, with owner, alternatives and cost, is in `context/decisions.md`. The client confirmed the common quarter-end with lags shown, NAV basis, Class I, the two leverage rows and trailing-12-month yield. River chose deterministic parsers plus a gate over an LLM reading filings, because an LLM can return a plausible number from the wrong share class. No return is annualized or converted from gross to net.
+- **Hard verification gate.** A value that fails a check becomes a labeled gap, not a number with a warning, because a flagged wrong number still ends up in a deck.
+- **No language model produces any number.** Deterministic parsers plus the gate, because an LLM can return a plausible figure from the wrong share class or period.
+- **When one report contradicts itself, show both and choose neither.** Recency and amendment rules can't separate two figures in one filing, so that judgment belongs to the PM.
+- **The client's terms, confirmed by the client:** a common quarter-end with lags shown, NAV basis, Class I, two leverage rows, and trailing-12-month yield.
+- **Reported over computed.** Returns are shown as reported, with their lag, never chained or compounded; no return is annualized or converted from gross to net.
+
+The full log, with owners, alternatives and costs, is in `context/decisions.md`.
+
+## Known limitations
 
 - **Fees are not extracted, because the four management fees are on different bases**: net assets, managed assets, gross assets and adjusted equity (Appendix D). A row of "1.00%" would look comparable when it is not, so v1 links each cell to the fee sentence. The four management-fee links were clicked in a real browser and land within the two-scroll limit.
 - **Parsing is tuned to these four funds.** A reworded label gives a labeled gap, not a wrong value.
 - **HTML filings have no page numbers.** Every link lands on its source text: the row label or quote when it is unique in the filing, else the nearest unique text above the row, with a find hint; a test checks each link's target text is in the cached filing. One check input (KREF cash) has no unique text nearby and opens the filing with its hint.
+- **Interval funds report NAV semi-annually,** so their trend shows labeled gaps, not estimates.
+- **Cliffwater's D/E has no independent cross-check,** so it stays Medium.
+- **Amendments are flagged, not re-pulled,** in v1.
 
-## Scope change, risks and rollout
+## Production risks and mitigations
 
-Word shipped in full, Dana's first priority. **Custom metrics:** the definitions file exists, with portfolio turnover as the example; a definition missing a required field (what it measures, unit, source, normalization, owner) is rejected, and wiring definitions into extraction is next phase. **Fund browser (design only):** search EDGAR by name, ticker or CIK; unsupported fund types show "Not yet supported".
+- **A citation that doesn't lead to its number:** every run re-verifies every citation against the cached filing, and tests check that every cell links.
+- **Anything that looks like IT work:** the analyst opens the page and clicks. River starts it during the pilot, and production access (a link or one-click launcher) is decided with Apex Ridge's operations lead.
+- **A fund rewords a table:** the value becomes a labeled gap that Exceptions names, fixed with one `config.py` entry and a test extract.
+- **EDGAR outage or rate limit:** only that fund's column is affected, and cached reruns work offline.
+- **Key-person dependence:** every constant in `config.py` is sourced; `docs/CODE_TOUR.md`, the decision log and the tests cover the rest.
 
-Dana named two ways this fails. A broken citation: every run re-verifies every citation against the cached filing. Anything that looks like IT work: the analyst only opens the page and clicks; River starts the page during the pilot, and production access (a link or one-click launcher) is decided with Apex Ridge's operations lead.
+## Scope change and rollout
 
-**Rollout:** a pilot quarter in parallel with the manual process; hosting with the operations lead; custom metrics, then the fund browser; then fee normalization, automatic amendment re-pull and PM sign-off in the tool. **Open items for the client:** Cliffwater's returns shown with a 3-quarter lag; KREF leverage on gross debt; the Proposed turnover rule (never annualize a not-annualized figure by scaling); whether KREF stays in the peer set; and who owns each custom-metric definition.
+Word shipped in full, the client's first priority. **Custom metrics:** the definitions file exists, with portfolio turnover as the example, and rejects a definition missing a required field; wiring it into extraction is next phase. **Fund browser:** designed, not built.
+
+**Rollout:** a pilot quarter in parallel with the manual process; hosting with the operations lead; then custom metrics and the fund browser. **Open items for the client:** Cliffwater's 3-quarter lag; KREF leverage on gross debt; the Proposed turnover rule; whether KREF stays in the peer set; custom-metric owners.

@@ -44,7 +44,7 @@ Low values are always listed in Exceptions. Custom metrics are capped at Medium:
 
 **Reconciliations** (Appendix A). Every interval-fund NAV point rolls forward to the cent (beginning NAV + operations + distributions = ending NAV), and KREF's book value equals equity ÷ shares at every point. Carlyle's and Golub's balance-sheet D/E agree with the D/E implied by their reported asset coverage (0.396x vs 0.397x; 1.25x vs 1.27x), and KREF's D/E net of cash (3.93x) matches its own 3.9x. Eleven of the 24 NAV points shown appear in 2 to 6 filings each, all agreeing. One check failed: Cliffwater's 1Y.
 
-**Where sources disagreed** (Appendix B, with quotes). Each cause is taken from the filings' own wording, or labeled a hypothesis.
+**Where sources disagreed** (Appendix B, with quotes).
 
 - **Cliffwater 1Y: 11.78% vs 11.58% in one N-CSR.** Cause unconfirmed (footnote 4 covers only waivers and taxes; share class is ruled out), so both are shown and the PM chooses.
 - **Golub D/E: 1.25x vs 1.27x implied by coverage.** Balance-sheet debt is carrying value; coverage uses senior securities. Within tolerance, not reconciled to the dollar.
@@ -59,7 +59,7 @@ Low values are always listed in Exceptions. Custom metrics are capped at Medium:
 
 **What changed after client review.** Our first version chose Cliffwater's 11.78% and flagged it, making the PM's choice for them and breaking the agreed rule that conflicts are never resolved silently; it now shows both and selects neither. Its computed 421.1% asset coverage moved from the cell to a labeled note.
 
-**Tests:** 187 automated tests run offline on verbatim extracts of the real filings, including: every shown value re-passes the gate, no cell is blank, every cell links to a filing, and Word cells match Excel cells.
+**Tests:** 187 automated tests run offline on verbatim extracts of the real filings.
 
 ## Key decisions and reasoning
 

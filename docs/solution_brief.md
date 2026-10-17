@@ -22,11 +22,11 @@ Every quarter, an analyst spends 6 to 8 hours reading four competitors' SEC fili
 A review page where the analyst picks the quarter-end and clicks **Run**. It fetches the SEC filings and fills the deck's layout beside Apex Ridge's own numbers.
 
 1. **Every number proves itself.** Click any cell to see the filing, section and exact source text, linked to the SEC document. Each run re-reads every number from its filing and tests it against the fund's other figures; if it can't confirm a number, it doesn't show it.
-2. **Every number has a confidence rating.** Green means confirmed by an independent second source, amber means one source. Red means a check failed or an assumption was needed, and it is listed for review.
+2. **Every number has a confidence rating.** Green means confirmed by an independent second source, amber means one source, red means a check failed or an assumption was needed.
 3. **No silent judgment calls.** Conflicts, lags and calculations are labeled next to the number, and gaps say why. A calculation never fills a reported row: Cliffwater's computed 421.1% asset coverage sits in a note, and its cell says "Not reported by fund".
 4. **Amendments are impossible to miss.** If a filing we use is amended, the cell itself reads "Superseded by amendment: re-check", in red, on the page, in Excel and Word, and in exceptions. The analyst re-pulls; the client confirmed flag-only is right for v1.
 
-Outputs: the review page; a locked Excel workbook in the deck's exact layout, tracing every value; and a Word report for the IC, which the client ranked first. Word uses the same run and cell text as the Excel, every flag, lag label, computed note and citation included: "The IC sees what the PM sees." It is stamped with a run ID, run time and code version, so edits can be checked.
+Outputs: the review page, a locked Excel workbook in the deck's layout, and a Word report for the IC from the same run, stamped with a run ID and code version.
 
 ## What changes each quarter
 
@@ -59,5 +59,3 @@ Outputs: the review page; a locked Excel workbook in the deck's exact layout, tr
 The client named two ways this fails: a broken citation and any step that looks like IT work. Every run re-verifies every citation against its stored filing and tests check that every cell links, and the analyst only opens the page and clicks Run.
 
 **Decisions we need:** whether KREF stays in the peer set (the CIO's call), who owns each custom-metric definition, and the introduction to the operations lead.
-
-**The result:** every number in the board deck traceable to its page in one click, with the catches a hurried read would miss.

@@ -109,3 +109,11 @@ body.panel-open { padding-right: min(552px, 100vw); }
 .bench td.conflict-cell { background: #fcefd2; }
 .bench .conflict { display: block; color: #9b2c1f; font-weight: 600; font-size: 12px; }
 .bench .cand { display: block; font-size: 12px; }
+
+/* Source quotes wrap inside the panel instead of running off the side. */
+.panel blockquote { white-space: normal; overflow-wrap: anywhere; }
+.panel table.csv-row { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13px; }
+.panel table.csv-row td { padding: 3px 8px; border-bottom: 1px solid var(--line); }
+.panel table.csv-row td:first-child { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+.panel table.csv-row td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.panel table.csv-row tr.cited td { background: #fde68a; font-weight: 600; color: var(--fg); }

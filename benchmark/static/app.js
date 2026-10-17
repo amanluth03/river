@@ -89,6 +89,18 @@ function highlight(quote, rec) {
   return safe.split(shown).join(`<mark>${shown}</mark>`);
 }
 
+// Client CSV source: the quote is "header line | data line". Show it as column → value, one per line,
+// with the cited column highlighted, instead of one long line to scroll through.
+function clientRowTable(c) {
+  const [header, line] = c.quote.split(" | ");
+  const names = header.split(","), values = (line || "").split(",");
+  if (names.length !== values.length) return `<blockquote>${esc(c.quote)}</blockquote>`;
+  const rows = names.map((n, i) =>
+    `<tr class="${n === c.column_label ? "cited" : ""}"><td>${esc(n)}</td><td>${esc(values[i])}</td></tr>`).join("");
+  return `<div class="muted">Source row in ${esc(c.document)} (the cited column is highlighted):</div>
+    <table class="csv-row">${rows}</table>`;
+}
+
 function openPanel(rec, el) {
   document.querySelectorAll("td.selected").forEach((t) => t.classList.remove("selected"));
   if (el) el.classList.add("selected");
@@ -120,7 +132,8 @@ function openPanel(rec, el) {
       if (c.sha256) h += `<dt>File hash</dt><dd class="muted">SHA-256 ${esc(c.sha256.slice(0, 16))}… (verified unchanged)</dd>`;
     }
     h += "</dl>";
-    if (c.quote) h += `<div class="muted">Source text${c.char_offset != null ? ` (found at character ${c.char_offset})` : ""}:</div><blockquote>${highlight(c.quote, rec)}</blockquote>`;
+    if (c.quote && c.cik === "client") h += clientRowTable(c);
+    else if (c.quote) h += `<div class="muted">Source text${c.char_offset != null ? ` (found at character ${c.char_offset})` : ""}:</div><blockquote>${highlight(c.quote, rec)}</blockquote>`;
   }
   if (rec.inputs?.length) {
     h += `<h4>Inputs (each verified in its filing)</h4><ol class="inputs">${rec.inputs.map((x) => {

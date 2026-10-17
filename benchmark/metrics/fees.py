@@ -1,4 +1,4 @@
-"""Management and incentive fees: not extracted in v1 (decision 20).
+"""Management and incentive fees: not extracted in v1.
 
 Fee terms sit in narrative text and are the slowest to verify, so v1 shows "Not extracted in v1" and a
 citation that lands on the sentence stating the terms: the filing link, the sentence verbatim, and a
@@ -33,7 +33,7 @@ LANDING_NOTE = {
 
 def _linked_record(data: FundData, filing, metric: str, note: str = "") -> ValueRecord:
     """A "Not extracted in v1" cell whose citation lands on the fee sentence of `filing`: the incentive-fee
-    sentence for the incentive row where one is configured (Aman, final pass), else the management-fee one."""
+    sentence for the incentive row where one is configured, else the management-fee one."""
     fund = data.fund
     path = data.fetch(filing)
     text = textnorm.document_text(path)

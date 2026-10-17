@@ -1,4 +1,4 @@
-"""Net returns, 1Y / 3Y / 5Y, NAV basis, as each fund reports them (decisions 2, 13, 15).
+"""Net returns, 1Y / 3Y / 5Y, NAV basis, as each fund reports them.
 
 Interval funds: the "Average Annual Total Returns" table in the latest annual report (N-CSR), Class I.
   The 1Y figure is checked against the same fiscal year's total return in the Financial Highlights.
@@ -7,7 +7,7 @@ GBDC: its reported return on average net assets for the latest fiscal year, labe
   "Not directly comparable"; never compounded into 3Y/5Y (client, W2).
 KREF: no NAV-based return exists (a REIT reports book value, not NAV); market-price returns are excluded.
 Semi-annual figures are not chained into a trailing year: the latest reported trailing figure is shown
-with its lag instead (decision 39).
+with its lag instead.
 """
 import re
 from decimal import Decimal
@@ -42,7 +42,7 @@ def _highlights_candidate(data: FundData, filing, cand: Candidate) -> Candidate 
 
 
 def _conflict(fund, metric: str, cands: list[Candidate], period) -> ValueRecord:
-    """Client, W3 (decision 56): two reported figures in one filing disagree. Show both with their sources,
+    """Client, W3: two reported figures in one filing disagree. Show both with their sources,
     flagged for the PM, and select neither: no value, no confidence, and a citation that quotes neither."""
     listed = "; ".join(f"{c.value}% in {c.citation.section} ({c.citation.form} {c.citation.accession})" for c in cands)
     neutral = cands[0].citation.model_copy(update={

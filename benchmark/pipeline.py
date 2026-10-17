@@ -23,8 +23,7 @@ def _missing(fund: str, metric: str, status: str, reason: str, period: date | No
 
 
 def _code_version() -> str:
-    """The commit the run used, marked if the working tree had uncommitted changes (reviewer finding:
-    a report must not claim a commit that didn't produce it)."""
+    """The commit the run used, marked if the working tree had uncommitted changes."""
     try:
         git = lambda *args: subprocess.run(["git", *args], capture_output=True, text=True, cwd=config.ROOT,
                                            timeout=5).stdout.strip()
@@ -145,7 +144,7 @@ def _nav_cell(fund, records, as_of, issues) -> ValueRecord:
 
 def _apply_lag(record: ValueRecord, as_of: date, issues: list[Issue]):
     """Every shown competitor value, and every conflict (both values share one period), says how far its
-    period is from the as-of date (decision 4)."""
+    period is from the as-of date."""
     if record.status not in ("ok", "conflict") or record.period_end is None:
         return
     record.lag_quarters = config.quarters_between(record.period_end, as_of)
@@ -162,7 +161,7 @@ def _record_issues(records: list[ValueRecord], issues: list[Issue]):
         elif r.status == "not_verified":
             issues.append(Issue(kind="missing", fund=r.fund, metric=r.metric,
                                 message=f"{r.period_end}: not shown, failed verification ({r.reason})."))
-        if r.status == "ok" and r.confidence == "low":  # Low is always flagged for review (CLAUDE.md)
+        if r.status == "ok" and r.confidence == "low":  # Low is always flagged for review
             issues.append(Issue(kind="check_failed", fund=r.fund, metric=r.metric,
                                 message=f"{r.period_end}: shown with Low confidence. {r.confidence_reason}"))
         if r.method == "computed" and r.status == "ok":
@@ -247,7 +246,7 @@ def run(as_of: date = config.DEFAULT_AS_OF, progress: Callable[[str], None] = pr
             if edgar is None:
                 raise EdgarError(edgar_error)
             column, trend[fund.ticker] = _competitor(fund, edgar, cache, as_of, window, issues, used, progress)
-        except Exception as exc:  # any failure stops this fund only; the others still run (review finding 5)
+        except Exception as exc:  # any failure stops this fund only; the others still run
             message = str(exc) if isinstance(exc, EdgarError) else f"Error while reading {fund.ticker} filings: {exc}"
             issues.append(Issue(kind="fetch", fund=fund.ticker, message=message))
             column = {metric: _missing(fund.ticker, metric, "fetch_failed", message) for metric, _ in ROWS}

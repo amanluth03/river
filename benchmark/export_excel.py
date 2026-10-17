@@ -1,8 +1,8 @@
 """Excel export: the deck table plus provenance (one row per value), exceptions and the NAV trend.
 
-Layout matches the board deck (same rows, same order; decision 17). Every cell that has a source links
-to its filing (decision 21). All sheets are protected against accidental edits, as the locked template
-was (decision 17); protection has no password, so a PM who needs to can still unprotect a sheet.
+Layout matches the board deck. Every cell that has a source links
+to its filing. All sheets are protected against accidental edits, as the locked template
+was; protection has no password, so a PM who needs to can still unprotect a sheet.
 """
 from pathlib import Path
 
@@ -17,7 +17,7 @@ BOLD = Font(bold=True)
 LINK = Font(color="1F4E79", underline="single")
 HEADER_FILL = PatternFill("solid", fgColor="E8ECF1")
 LETTER = {"high": "H", "medium": "M", "low": "L"}
-# Cells that need a reviewer's eye are styled in the cell itself (client, W3: decision 58).
+# Cells that need a reviewer's eye are styled in the cell itself.
 ALERT_FILL = {"amendment": PatternFill("solid", fgColor="F8D7D3"), "conflict": PatternFill("solid", fgColor="FCEFD2")}
 ALERT_FONT = Font(color="9B2C1F", bold=True)
 
@@ -135,8 +135,8 @@ TREND_COLUMNS = ["Fund", "Quarter end", "Value", "Status / reason", "Form", "Acc
 
 
 def trend_row(fund: str, p: ValueRecord) -> list:
-    """One NAV trend point. A gap is a row with its reason, never left out (decision 4); the record's label
-    names the fund's measure, so KREF reads "Book value per share" (decision 18)."""
+    """One NAV trend point. A gap is a row with its reason, never left out; the record's label
+    names the fund's measure, so KREF reads "Book value per share"."""
     c = p.citation
     status = "ok" if p.status == "ok" else f"{status_label(p.status)}: {p.reason}"
     return [f"{fund} ({p.label})" if p.label else fund, str(p.period_end),

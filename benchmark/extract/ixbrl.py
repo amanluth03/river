@@ -1,6 +1,6 @@
 """Read inline-XBRL tagged numbers straight from a filing document, with their periods.
 
-We use lxml rather than a full XBRL processor (decision 21). Only what we need:
+We use lxml rather than a full XBRL processor. Only what we need:
 concept name, context period, dimensions (e.g. share class), scale, sign and the shown text.
 """
 from dataclasses import dataclass, field

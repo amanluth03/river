@@ -1,7 +1,6 @@
 """Every new metric end to end on fixtures cut from the real filings (tests/cut_fixtures.py).
 
 Expected values are the ones printed in the filings (accessions in tests/test_pipeline.py FILINGS);
-docs/CODE_TOUR.md section 2 traces each one from the filing to the cell.
 """
 from datetime import date
 from decimal import Decimal
@@ -164,7 +163,7 @@ def test_fee_cells_show_their_link_and_cclfx_incentive_note(bundle):
 
 
 def test_conflict_cell_shows_its_lag(bundle):
-    """Aman, final pass: the CCLFX 1Y conflict cell says "as of 3/31/25 · 3Q lag" like the 3Y/5Y cells."""
+    """The CCLFX 1Y conflict cell says "as of 3/31/25 · 3Q lag" like the 3Y/5Y cells."""
     from benchmark.export_excel import cell_text
     rec = cell(bundle, "net_return_1y", "CCLFX")
     assert rec.status == "conflict" and rec.lag_quarters == 3
@@ -181,7 +180,7 @@ def test_kref_return_cells_say_why(bundle):
 
 
 def test_final_pass_labels_and_links(bundle):
-    """Aman, final pass: incentive links land on incentive sentences; plain cross-check wording;
+    """Incentive links land on incentive sentences; plain cross-check wording;
     CCLFX coverage note without 'Computed'; an Exceptions row for it; Apex trend gaps labeled."""
     takix, gbdc = cell(bundle, "incentive_fee", "TAKIX"), cell(bundle, "incentive_fee", "GBDC")
     assert "incentive fee" in takix.citation.quote and "incentive fee" in gbdc.citation.quote.lower()
@@ -201,7 +200,7 @@ def test_final_pass_labels_and_links(bundle):
 def test_gbdc_item5_quarters_read_and_agree_with_fy2025(tmp_path):
     """GBDC's 10-K Item 5 quarterly distributions declared per share. FY2025's quarters sum to the tagged
     fiscal-year total (1.65), so the Q4 2025 yield keeps its fiscal-year route; FY2024's (1.94 vs 1.89, a
-    weighted-average-share total in the merger year) would switch to quarters (decision 83)."""
+    weighted-average-share total in the merger year) would switch to quarters."""
     from datetime import date
     from decimal import Decimal
     from tests.test_pipeline import FakeEdgar

@@ -13,12 +13,12 @@ def test_workbook_layout(tmp_path):
     bench = wb["Benchmark"]
     assert [c.value for c in bench[1]][:6] == ["Metric", "Apex Ridge", "CCLFX", "TAKIX", "GBDC", "KREF"]
     labels = [r[0].value for r in bench.iter_rows(min_row=2, max_row=10)]
-    assert labels == [label for _, label in bundle.rows]  # deck rows, deck order (decision 17)
+    assert labels == [label for _, label in bundle.rows]  # deck rows, deck order
     nav_row = next(r for r in bench.iter_rows(values_only=True) if r[0] == "NAV per share")
     assert nav_row[3].startswith("$8.32")  # TAKIX
-    assert nav_row[5].startswith("Book value per share: $13.04")  # KREF, exact label (decision 14)
+    assert nav_row[5].startswith("Book value per share: $13.04")  # KREF, exact label
     three_year = next(r for r in bench.iter_rows(values_only=True) if r[0].startswith("Net return, trailing 3Y"))
-    assert three_year[3] == "Not reported by fund"  # TAKIX: labeled, never blank (decision 15)
+    assert three_year[3] == "Not reported by fund"  # TAKIX: labeled, never blank
 
 
 def test_cells_link_to_filings_and_sheets_are_protected(tmp_path):
@@ -29,7 +29,7 @@ def test_cells_link_to_filings_and_sheets_are_protected(tmp_path):
     assert all(ws.protection.sheet for ws in wb.worksheets)
     bench = wb["Benchmark"]
     competitor_cells = [c for row in bench.iter_rows(min_row=2, max_row=10, min_col=3, max_col=6) for c in row]
-    # Every competitor cell, gaps included, links to the filing it came from or was looked for in (decision 21).
+    # Every competitor cell, gaps included, links to the filing it came from or was looked for in.
     assert all(c.hyperlink and c.hyperlink.target.startswith("https://www.sec.gov/") for c in competitor_cells)
 
 
@@ -67,7 +67,7 @@ RAW_KINDS = ["check_failed", "not_comparable", "not_like_for_like", "client_data
 
 
 def test_exceptions_and_provenance_use_plain_labels(tmp_path):
-    """Aman: exception types and metric names read as words, not code names, in the export."""
+    """Exception types and metric names read as words, not code names, in the export."""
     from benchmark import labels
 
     bundle, _ = make_bundle(tmp_path)

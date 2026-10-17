@@ -68,7 +68,7 @@ EDGAR ──> cache (by accession, SHA-256) ──> extract candidates ──> v
 
 ```
 benchmark/
-  config.py        EVERY constant, each with its source (row labels, tags, tolerances, client wording)
+  config.py        every business-rule constant, each with its source (row labels, tags, tolerances, client wording)
   records.py       ValueRecord / Citation / Candidate / Issue / RunBundle
   edgar.py         EDGAR client (User-Agent, pacing, retries)
   cache.py         filing cache + SHA-256 manifest

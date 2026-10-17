@@ -124,7 +124,7 @@ def _input_text(x) -> str:
 
 def _trend(doc, bundle: RunBundle):
     """Every NAV point for every fund, the same rows as the Excel "NAV Trend" sheet. Gaps are rows with
-    their reason (decision 4); each sourced point's accession links to its filing (decision 21)."""
+    their reason; each sourced point's accession links to its filing."""
     doc.add_heading("NAV trend", level=1)
     doc.add_paragraph("Interval funds report NAV semi-annually: other quarters are gaps with the reason, never "
                       "estimates. KREF reports book value per share.").runs[0].font.size = Pt(8)

@@ -29,7 +29,7 @@ def test_amendment_with_different_value_wins_and_is_low():
 
 
 def test_two_values_in_one_filing_show_both_and_choose_neither():
-    """Client, W3 (decision 56), now for every row: a same-filing disagreement is the PM's call."""
+    """Client, W3, now for every row: a same-filing disagreement is the PM's call."""
     rec = resolve([cand("10.77", "SAME", date(2025, 12, 5)), cand("10.70", "SAME", date(2025, 12, 5))])
     assert rec.status == "conflict" and rec.value is None and rec.confidence is None
     assert rec.gap == "Conflict: PM to choose"

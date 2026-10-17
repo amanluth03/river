@@ -1,8 +1,8 @@
 """Every constant the tool depends on, in one place, each with its source.
 
-Rule (Aman, session 1): no literal in the code without a cited source. If a filing changes the text
+Rule: no literal in the code without a cited source. If a filing changes the text
 a pattern here relies on, the extractor finds nothing and the cell shows "not found" with the reason;
-it never falls back to a guess. docs/CODE_TOUR.md section 3 lists these with what breaks if they change.
+it never falls back to a guess.
 
 Source shorthand used below (all on SEC EDGAR, cached under data/cache/<cik>/<accession>/):
   CCLFX-S25  N-CSRS 0001213900-25-118573 (period 2025-09-30)
@@ -11,7 +11,7 @@ Source shorthand used below (all on SEC EDGAR, cached under data/cache/<cik>/<ac
   GBDC-Q126  10-Q   0001476765-26-000012 (period 2025-12-31)
   GBDC-K25   10-K   0001476765-25-000096 (period 2025-09-30)
   KREF-K25   10-K   0001628280-26-005092 (period 2025-12-31)
-  W1, W2     client conversations, context/window1_transcript.md and window2_transcript.md
+  W1, W2, W3 the three client conversations (Windows 1 to 3)
 """
 import csv
 from dataclasses import dataclass
@@ -26,12 +26,12 @@ COMPETITOR_CSV = STARTER / "competitor_cik_list.csv"  # client starter package
 APEX_CSV = STARTER / "apex_ridge_fund_data.csv"  # client starter package
 CACHE_DIR = ROOT / "data" / "cache"
 RUNS_DIR = ROOT / "runs"
-RUN_ID_FORMAT = "%Y%m%d-%H%M%S-%f"  # run folder name = run ID, stamped on exports (client W3: decision 65)
+RUN_ID_FORMAT = "%Y%m%d-%H%M%S-%f"  # run folder name = run ID, stamped on exports
 EXPORTS_DIR = ROOT / "exports"  # every Excel export is also saved here (gitignored)
 
-# Apex Ridge's latest quarter in the client CSV (Q4 2025); confirmed as the as-of reading in W2 (decision 9).
+# Apex Ridge's latest quarter in the client CSV (Q4 2025); confirmed as the as-of reading in W2.
 DEFAULT_AS_OF = date(2025, 12, 31)
-WINDOW_QUARTERS = 8  # "8-quarter NAV per share trend" (W1, decision 5)
+WINDOW_QUARTERS = 8  # "8-quarter NAV per share trend"
 
 # ---------------------------------------------------------------- SEC EDGAR
 # SEC fair-access policy: at most 10 requests/second and a User-Agent naming a contact
@@ -44,7 +44,7 @@ EDGAR_PAUSE_SECONDS = 0.2
 #     ("registered under the Investment Company Act of 1940 ... closed-end ... interval fund");
 #     GBDC 10-K Item 1 ("elected to be regulated as a business development company");
 #     KREF 10-K Item 1 (a REIT, "not ... an investment company under the Investment Company Act").
-#   share_class: "Class I" for interval funds (W1, decision 3). TAKIX = Class I per its ticker in the
+#   share_class: "Class I" for interval funds. TAKIX = Class I per its ticker in the
 #     TAKIX-A25 performance table ("I Share TAKIX"). CCLFX has only Class I (CCLFX-S25 balance sheet:
 #     "Class I Shares: Net assets applicable to shares outstanding").
 #   forms: the periodic reports each files (EDGAR filing index for each CIK).
@@ -58,7 +58,7 @@ FUND_SETTINGS = {
 
 # ---------------------------------------------------------------- the deck table
 # Row order and labels: apex-ridge-starter/docs/board_deck_excerpt.md (slide 14). The single
-# "Leverage (D/E)" row became two rows, approved by Dana in W2 (decision 10).
+# "Leverage (D/E)" row became two rows, approved by Dana in W2.
 ROWS = [
     ("net_return_1y", "Net return, trailing 1Y (ann.)"),
     ("net_return_3y", "Net return, trailing 3Y (ann.)"),
@@ -89,23 +89,23 @@ APEX_COLUMNS = {
 }
 
 # ---------------------------------------------------------------- labels the client fixed (exact wording)
-KREF_BOOK_VALUE_LABEL = "Book value per share"  # W2: '"Book value per share" not "NAV per share"' (decision 14)
+KREF_BOOK_VALUE_LABEL = "Book value per share"  # W2: '"Book value per share" not "NAV per share"'
 GBDC_RETURN_LABEL = "Return on average net assets"  # W2: "label it clearly as return on average net assets"
-GBDC_RETURN_NOTE = "Not directly comparable"  # W2: "mark it not directly comparable" (decision 13)
-NOT_REPORTED_BY_FUND = "Not reported by fund"  # W2: '"not reported" is acceptable, but label it' (decision 15)
+GBDC_RETURN_NOTE = "Not directly comparable"  # W2: "mark it not directly comparable"
+NOT_REPORTED_BY_FUND = "Not reported by fund"  # W2: '"not reported" is acceptable, but label it'
 NOT_IN_CLIENT_DATA = "Not in client data"
-# Apex trend quarters before the CSV's first row (Aman, final pass): "Not in client data (CSV starts Q1 2024)";
+# Apex trend quarters before the CSV's first row: "Not in client data (CSV starts Q1 2024)";
 # the first quarter is read from the CSV, not typed here.
 APEX_TREND_GAP = NOT_IN_CLIENT_DATA + " (CSV starts {first})"  # W2: '"Not in client data" for our regulatory leverage is fine' (21)
-KREF_NOT_1940_ACT = "Not applicable: KREF is not a 1940 Act fund"  # W2 draft approved by Dana (decision 10)
-# KREF return cells: the short reason in the cell (Aman, final pass: decision 78). KREF-K25 reports book value
-# per share, not NAV, so there is no NAV-based total return; market-price returns are excluded (decision 2).
+KREF_NOT_1940_ACT = "Not applicable: KREF is not a 1940 Act fund"  # W2 draft approved by Dana
+# KREF return cells: the short reason in the cell. KREF-K25 reports book value
+# per share, not NAV, so there is no NAV-based total return; market-price returns are excluded.
 KREF_NO_NAV_RETURN = "Not applicable: no NAV-based return (REIT reports book value)"
-FEES_NOT_EXTRACTED = "Not extracted in v1"  # W2: '"Not extracted in v1" with a direct link' (decision 20)
-FEES_IN_NARRATIVE = "Fee terms are in the prospectus narrative"  # W2 fallback wording (decision 20)
-# Window 3 (client, decision 56): when two reported figures disagree inside one filing, show both, choose neither.
+FEES_NOT_EXTRACTED = "Not extracted in v1"  # W2: '"Not extracted in v1" with a direct link'
+FEES_IN_NARRATIVE = "Fee terms are in the prospectus narrative"  # W2 fallback wording
+# Window 3: when two reported figures disagree inside one filing, show both, choose neither.
 CONFLICT_PM_CHOOSE = "Conflict: PM to choose"
-# Window 3 (client, decision 57): CCLFX reports asset coverage per facility only; the computed fund-level
+# Window 3: CCLFX reports asset coverage per facility only; the computed fund-level
 # figure moves to a note with this label, and the cell says NOT_REPORTED_BY_FUND.
 COMPUTED_LOW_NOTE = "computed, low confidence"
 # What a missing cell shows: the first of these its reason starts with, else the status label below.
@@ -115,10 +115,10 @@ STATUS_LABELS = {"not_found": "Not found in the filings read", "not_verified": "
                  "fetch_failed": "EDGAR fetch failed", "excluded_by_rule": "Excluded by rule",
                  "not_reported": NOT_REPORTED_BY_FUND, "not_applicable": "Not applicable",
                  "not_extracted": FEES_NOT_EXTRACTED, "conflict": CONFLICT_PM_CHOOSE}
-AMENDMENT_FLAG = "Superseded by amendment: re-check"  # CLAUDE.md item 20 (Dana's W2 request, decision 19)
+AMENDMENT_FLAG = "Superseded by amendment: re-check"  # client, W2: flag a value whose filing was amended
 
 # Apex 1Y gap note: framed exactly as drafted in W2 and approved by Dana ("Note the gap and the likely
-# cause in the output exactly as you framed it, and flag that the accountant needs to confirm", decision 22).
+# cause in the output exactly as you framed it, and flag that the accountant needs to confirm").
 APEX_GAP_NOTE = (
     "The reported 1-year return is the official figure. Compounding the four quarterly returns gives about "
     "{gap} bps more, and the gap is steady every quarter. A rounding difference would bounce around and a "
@@ -126,21 +126,21 @@ APEX_GAP_NOTE = (
     "the 1-year figure but not in the quarterly ones (for example, a different share class or fee load, or a "
     "fee charged once a year). Likely cause, not confirmed: fund accountant to confirm.")
 
-# Footnotes under the table (UI and Excel). Each restates a client decision, numbered as in decisions.md.
+# Footnotes under the table (UI, Excel and Word). Each restates a rule the client set.
 FOOTNOTES = [
     "As-of date {as_of}: each fund's latest report for a period ending on or before it; lags are shown in the "
-    "cell (decisions 4, 9).",
+    "cell.",
     "Competitor figures from SEC EDGAR filings, each verified against the source text before display. Every cell "
     "links to its filing; the Provenance table has form, accession, section, source quote and every input of "
-    "a computed value (decision 7).",
+    "a computed value.",
     "[H]/[M]/[L] = confidence. Low values are listed under Exceptions for review.",
-    "CCLFX and TAKIX: Class I. Returns and distribution yields on NAV basis (decisions 2, 3).",
+    "CCLFX and TAKIX: Class I. Returns and distribution yields on NAV basis.",
     "Economic leverage = total debt (incl. mandatory redeemable preferred) / net assets. Regulatory leverage = "
-    "asset coverage as reported under the 1940 Act (decision 10).",
-    "Distribution yield = trailing 12 months of distributions per share / period-end NAV per share (decision 16).",
-    "GBDC 1Y is its reported return on average net assets: not directly comparable to NAV total return (decision 13).",
+    "asset coverage as reported under the 1940 Act.",
+    "Distribution yield = trailing 12 months of distributions per share / period-end NAV per share.",
+    "GBDC 1Y is its reported return on average net assets: not directly comparable to NAV total return.",
     "KREF is a mortgage REIT, not a like-for-like peer: Book value per share, no 1940 Act leverage. CIO to decide "
-    "whether it stays (decision 14).",
+    "whether it stays.",
 ]
 
 # ---------------------------------------------------------------- NAV per share (milestone 1)
@@ -161,7 +161,7 @@ PER_SHARE_TOLERANCE = Decimal("0.01")
 # Table captions that state the scale of amounts. KREF-K25 book value table: "(amounts in thousands, ...)".
 SCALE_WORDS = {"in thousands": 1000, "in millions": 1_000_000}
 
-# ---------------------------------------------------------------- leverage (decisions 10, 21)
+# ---------------------------------------------------------------- leverage
 # Economic leverage = total debt (incl. mandatory redeemable preferred) / net assets, all rows read from
 # ONE balance-sheet table, so the table's scale (dollars or thousands) cancels out. Row labels as printed:
 LEVERAGE_ROWS = {
@@ -196,7 +196,7 @@ TAKIX_COVERAGE_SENTENCE = (r"As of (?P<date>\w+ \d{1,2}, \d{4}), asset coverage 
 #   GBDC-Q126 financial highlights: "Asset coverage ratio(7) 178.94%", tagged with this concept.
 COVERAGE_CONCEPT = "us-gaap:InvestmentCompanySeniorSecurityIndebtednessAssetCoverageRatio"
 #   CCLFX-S25 reports asset coverage per facility only ("Asset Coverage Per $1,000 of Borrowings"), so the
-#   fund-level figure is computed from the balance sheet and labeled as computed (decision 36).
+#   fund-level figure is computed from the balance sheet and labeled as computed.
 # 1940 Act minimums, shown next to the value:
 #   BDC: 150% (GBDC-K25: "the asset coverage ratio under the 1940 Act applicable to us decreased to 150%").
 #   Registered closed-end fund: 300% for debt (1940 Act s.18(a)(1)(A); TAKIX-A25 Note 7 "at least 300%"),
@@ -204,13 +204,13 @@ COVERAGE_CONCEPT = "us-gaap:InvestmentCompanySeniorSecurityIndebtednessAssetCove
 COVERAGE_MINIMUM = {"bdc": "150%", "interval": "300% for debt, 200% for debt plus preferred"}
 # Our D/E and the D/E implied by reported coverage need not match exactly: coverage counts senior securities
 # at principal while balance sheets show carrying value, and KREF prints its ratio to 0.1x. 0.05x is half of
-# KREF's rounding step; a larger gap means a debt line is missing or misread (decision 37).
+# KREF's rounding step; a larger gap means a debt line is missing or misread.
 LEVERAGE_TOLERANCE = Decimal("0.05")
 # KREF-K25 MD&A "Debt-to-Equity Ratio and Total Leverage Ratio" table: "Total leverage ratio(B) 3.9x".
 KREF_TOTAL_LEVERAGE = r"^Total leverage ratio"
 KREF_DEBT_TO_EQUITY = r"^Debt-to-equity ratio"
 
-# ---------------------------------------------------------------- distributions (decision 16)
+# ---------------------------------------------------------------- distributions
 # Yield = trailing-12-month distributions per share / period-end NAV per share (W2, Apex's own basis).
 DISTRIBUTION_ROWS = {
     "CCLFX": r"^Total Distributions to shareholders",  # CCLFX-S25 Financial Highlights Class I
@@ -225,7 +225,7 @@ PERIOD_LENGTHS = [(r"\bthree months ended\b", 3), (r"\bsix months ended\b", 6), 
                   (r"\byears? ended\b", 12)]
 # GBDC-Q126 / GBDC-K25: "Dividends and distributions declared per common share", tagged with:
 DISTRIBUTION_CONCEPT = "us-gaap:CommonStockDividendsPerShareDeclared"
-# GBDC special and supplemental distributions (Aman, final pass: a trailing 12 months that includes one says so).
+# GBDC special and supplemental distributions: a trailing 12 months that includes one says so.
 # Source: GBDC-K25 Item 5 distributions table, footnotes (4) and (5); each quote must still be in the cached
 # filing for the note to appear. Payment dates and amounts are as those footnotes state them.
 GBDC_SPECIALS_SOURCE = ("1476765", "0001476765-25-000096", "gbdc-20250930.htm",
@@ -241,7 +241,7 @@ GBDC_SPECIALS_QUOTES = [
 # rows "Fiscal year ended September 30, 2024" then "Fourth quarter ... $ 0.44" etc.; GBDC-K24 and GBDC-K25).
 # Used when a fiscal-year total differs from the sum of its quarters: the FY2024 statement total ($1.89) is per
 # weighted-average share (highlights footnote (1)) in the year of the GBDC 3 merger, while the quarters declared
-# per share sum to $1.94 (decision 83). Distributions are the table's last column ("Distributions Declared").
+# per share sum to $1.94. Distributions are the table's last column ("Distributions Declared").
 GBDC_QUARTERS_YEAR_ROW = r"^Fiscal year ended (\w+ \d{1,2}, \d{4})$"
 GBDC_QUARTERS_LAST_HEADER = "Distributions Declared"
 GBDC_QUARTER_NUMBER = {"First quarter": 1, "Second quarter": 2, "Third quarter": 3, "Fourth quarter": 4}
@@ -254,7 +254,7 @@ DAYS_ONE_YEAR = (360, 370)
 # (GBDC-Q2 FY25: six months to 3/31/25), so 6- and 9-month pieces exist and are needed for a TTM.
 PERIOD_DAYS = [((88, 93), 3), ((180, 184), 6), ((271, 276), 9), (DAYS_ONE_YEAR, 12)]
 
-# ---------------------------------------------------------------- returns (decisions 13, 15)
+# ---------------------------------------------------------------- returns
 # Interval funds: the annual report's performance table.
 #   TAKIX-A25: "Average Annual Total Returns through December 31, 2025* Class Ticker Inception Date 1-Year
 #   5-Year(1) Since Inception(1) ... I Share TAKIX 9/4/2018 6.27% 8.21% 6.38%".
@@ -271,10 +271,10 @@ RETURN_TOLERANCE = Decimal("0.00")
 # GBDC-K25 Financial Highlights: "Total return based on average net asset value(6) 9.36%", footnote (6):
 # "the net increase (decrease) in net assets resulting from operations divided by ... the daily average
 # of total net assets". Tagged with this concept. Market-value return (InvestmentCompanyTotalReturnMarketValue)
-# is excluded by the NAV-basis rule (W1, decision 2).
+# is excluded by the NAV-basis rule.
 GBDC_RETURN_CONCEPT = "us-gaap:InvestmentCompanyTotalReturn"
 
-# ---------------------------------------------------------------- fees (decision 20)
+# ---------------------------------------------------------------- fees
 # Fee terms are not extracted in v1. The link goes to the sentence in the latest report that states the
 # fee terms; the citation records it verbatim with a find hint. Each phrase below is where that sentence
 # starts, copied from the filing named.
@@ -289,7 +289,7 @@ FEE_QUOTE_CHARS = 400
 # 0001213900-25-052571 has 0 matches for "incentive" or "hurdle"; TAKIX, GBDC and KREF reports do), the
 # incentive cell says so and links the nearest fee section. Never "charges no incentive fee": no quote says it.
 INCENTIVE_TERMS = r"incentive|hurdle"
-# Where each report states its incentive-fee terms (the incentive row links here; Aman, final pass: decision 80).
+# Where each report states its incentive-fee terms; the incentive row links here.
 # Each phrase occurs once in its report. KREF's management and incentive terms share one sentence (FEE_SECTION).
 INCENTIVE_FEE_SECTION = {
     "TAKIX": "the Fund pays its Adviser an incentive fee",  # TAKIX-A25 Note 5
@@ -364,7 +364,7 @@ def quarters_between(earlier: date, later: date) -> int:
 # Client, W3: a fee link must land "on or right next to the fee sentence (at most two scrolls away)".
 # First choice is a URL text fragment (#:~:text=..., the W3C/WICG "Text Fragments" spec; Chrome/Edge 81+,
 # Safari 16.1+, Firefox 131+). Browsers match it case-insensitively and jump to the FIRST match, so it is
-# only used when the words occur once in the document (decision 34: a repeated label landed on Class A).
+# only used when the words occur once in the document (a repeated label once landed on TAKIX's Class A table).
 # The fragment grows one word at a time from the FEE_SECTION phrase until unique, up to this many words
 # (the fee sentence itself is rarely longer; past that we are no longer pointing at one sentence).
 FEE_FRAGMENT_MAX_EXTRA_WORDS = 40
@@ -380,7 +380,7 @@ FEE_ANCHOR_MAX_CHARS = 4000
 
 
 # DEEP-LINK CONSTANTS (owned by the deep-link task)
-# Every citation link lands on its source text (Aman/client: "not the top of the filing"). benchmark/links.py
+# Every citation link lands on its source text. benchmark/links.py
 # reuses the fee-link rules above (FEE_FRAGMENT_UNSAFE_CHARS, FEE_FRAGMENT_MAX_EXTRA_WORDS, the encoding).
 # A narrative quote (no row label) starts its fragment with this many words, then grows until unique:
 # four words make a visible highlight; one or two could be a lone common word.

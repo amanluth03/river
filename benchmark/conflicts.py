@@ -1,6 +1,6 @@
 """Pick one value per (fund, metric, period) from verified candidates, and say why.
 
-Rules (decision 6): equal values agree; otherwise the most recently filed document wins
+Rules: equal values agree; otherwise the most recently filed document wins
 (an amendment is always filed after the original it amends). Two different values in the
 same filing have no rule, so they go to the PM. Nothing is resolved silently.
 """
@@ -29,7 +29,7 @@ def resolve(cands: list[Candidate], label: str | None = None) -> ValueRecord:
         same_filing = {c.citation.accession for c in verified if c.value != latest.value} & {latest.citation.accession}
         others = "; ".join(_describe(c) for c in verified if c is not latest)
         if same_filing:
-            # Client, W3 (decision 56), for every row: one filing contradicting itself is the PM's call.
+            # Client, W3, for every row: one filing contradicting itself is the PM's call.
             # Show both, select neither: no value, no confidence, a citation that quotes neither.
             listed = "; ".join(_describe(c) for c in verified)
             neutral = latest.citation.model_copy(update={

@@ -1,4 +1,4 @@
-"""Amendment tracking (decision 19): on every run, check each fund's EDGAR filing index for an amendment
+"""Amendment tracking: on every run, check each fund's EDGAR filing index for an amendment
 (form ending "/A") to any filing whose values we show.
 
 An amendment to filing F is a filing of form F.form + "/A" with the same period of report, filed after F.
@@ -24,7 +24,7 @@ def amendments_of(submissions: dict, form: str, period, filed) -> list[Filing]:
 
 def _citations(record: ValueRecord) -> list[Citation]:
     """Every filing a cell depends on: its citation, the inputs of a computed value or note, and each
-    candidate of a conflict (reviewer finding: conflict cells and notes were missed)."""
+    candidate of a conflict."""
     cits = [record.citation] if record.citation else []
     cits += [c.citation for c in record.inputs]
     if record.status == "conflict":

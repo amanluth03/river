@@ -1,6 +1,6 @@
 """Apex Ridge's own numbers from the client CSV, cited as client-provided, never modified.
 
-Checks are reported as exceptions for the client to answer (decision 11), not fixed.
+Checks are reported as exceptions for the client to answer, not fixed.
 """
 import csv
 from datetime import date

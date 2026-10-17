@@ -1,7 +1,7 @@
-"""Every citation link lands on its source text, not the top of the filing (client/Aman requirement).
+"""Every citation link lands on its source text, not the top of the filing.
 
 A URL text fragment (#:~:text=...) only works if (a) its words occur once in the document, since browsers
-jump to the first match (decision 34: a repeated label landed on TAKIX Class A), and (b) its words sit in
+jump to the first match (a repeated label once landed on TAKIX's Class A table), and (b) its words sit in
 one table cell or paragraph, since browsers never match across a block boundary.
 """
 from urllib.parse import unquote
@@ -78,7 +78,7 @@ def test_a_unique_cell_of_the_cited_row_beats_a_heading(tmp_path):
 
 def test_fallback_never_lands_before_the_previous_copy_of_the_label(tmp_path):
     # "Class A Shares" is unique, but landing there would make the reader's next match the Class A row
-    # (the decision 34 failure). Nothing unique sits between the two rows, so the link stays plain.
+    #. Nothing unique sits between the two rows, so the link stays plain.
     body = "<p>Class A Shares</p>" + _table(NAV, "8.32") + _table(NAV, "8.32")
     path, text = _doc(tmp_path, body)
     cit = _row_citation(text, NAV, f"{NAV} $ 8.32", nth=2)

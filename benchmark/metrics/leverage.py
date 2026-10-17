@@ -1,4 +1,4 @@
-"""Leverage, two rows (decision 10): economic debt-to-equity and regulatory asset coverage.
+"""Leverage, two rows: economic debt-to-equity and regulatory asset coverage.
 
 Economic D/E = total debt (including mandatory redeemable preferred) / net assets. Every input is a
 verified row of ONE balance-sheet table, so the table's scale (dollars or thousands) cancels out.
@@ -32,7 +32,7 @@ SECTION = "Balance sheet (Statement of Assets and Liabilities / Financial Condit
 
 
 def _agreement(ok: bool) -> str:
-    """Plain wording for the cross-check result (Aman, final pass)."""
+    """Plain wording for the cross-check result."""
     return f"agree within {LEVERAGE_TOLERANCE}x" if ok else f"differ by more than {LEVERAGE_TOLERANCE}x"
 
 
@@ -158,7 +158,7 @@ def records(data: FundData) -> dict[str, ValueRecord]:
     elif fund.kind == "bdc":
         out[REG] = _gbdc_coverage(data, filing, period) or missing(
             fund.ticker, REG, "not_found", f"Tagged asset coverage row not found in {filing.form} {filing.accession}.", period)
-    elif sheet is not None:  # CCLFX reports coverage per facility only (decision 36, revised by client W3: 57)
+    elif sheet is not None:  # CCLFX reports coverage per facility only
         coverage = ((equity.value + total_debt) / total_debt * 100).quantize(Decimal("0.1"))
         out[REG] = missing(fund.ticker, REG, "not_reported",
                            f"{NOT_REPORTED_BY_FUND}: the fund reports asset coverage per facility only, not for the "

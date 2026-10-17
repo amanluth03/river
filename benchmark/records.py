@@ -99,7 +99,7 @@ class ValueRecord(BaseModel):
     @computed_field
     @property
     def gap(self) -> str:
-        """What a missing cell says, never blank (decision 15): the client's wording if it applies."""
+        """What a missing cell says, never blank: the client's wording if it applies."""
         if self.value is not None:
             return ""
         for label in GAP_LABELS:

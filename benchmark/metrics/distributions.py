@@ -1,11 +1,11 @@
-"""Distribution yield = trailing-12-month distributions per share / period-end NAV per share (decision 16).
+"""Distribution yield = trailing-12-month distributions per share / period-end NAV per share.
 
 Funds report distributions for their own periods (fiscal years, six months, quarters). The trailing
 12 months ending on the NAV date P are built only from reported pieces, never estimated:
   a 12-month figure ending at P, if the fund reports one (TAKIX, KREF: fiscal year = calendar year); else
   current k-month piece ending at P + the fiscal year ending k months before P - the same k-month piece
   one year earlier (CCLFX: six months; GBDC: one quarter). Each piece is a verified row or tag.
-If no 12-month total can be built, the yield uses the period actually covered, flagged (decision 16).
+If no 12-month total can be built, the yield uses the period actually covered, flagged.
 """
 import calendar
 from collections import defaultdict

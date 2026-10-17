@@ -1,7 +1,7 @@
 """Fee links land on the fee sentence (client, Window 3: "at most two scrolls away; fix any that land on page one").
 
 The link is a URL text fragment (#:~:text=...) built only from text that occurs once in the document,
-so the browser cannot jump to a different, earlier copy of the words (the decision 34 failure).
+so the browser cannot jump to a different, earlier copy of the words.
 """
 from pathlib import Path
 from urllib.parse import unquote

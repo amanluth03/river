@@ -16,8 +16,7 @@ occur once in the document and sit inside one cell or paragraph ("block"). In or
   3. the nearest HTML element id before the row (fees.nearest_anchor_before), with the same hint;
   4. the plain document URL, and the hint says the link opens at the top.
 
-Left alone: client data, non-https links, and links that already carry a "#" (the fee links decide
-their own landing, decision 72).
+Left alone: client data, non-https links, and links that already carry a "#".
 """
 import html as htmllib
 import re

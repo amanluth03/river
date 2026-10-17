@@ -19,7 +19,7 @@ SHAPE_FIELDS = {
     "xbrl_tag": ("concept",),  # an inline XBRL concept, e.g. us-gaap:NetAssetValuePerShare
     "ratio_of_metrics": ("numerator", "denominator"),  # two other metric keys
 }
-# Client, W3 (CLAUDE.md item 27): a custom metric starts at Medium confidence at most, whatever its
+# Client, W3: a custom metric starts at Medium confidence at most, whatever its
 # checks, until it has a track record. The pipeline will apply this cap when it reads definitions.
 MAX_CONFIDENCE = "medium"
 

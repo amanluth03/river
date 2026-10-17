@@ -18,13 +18,13 @@ ISSUE_KIND_LABELS = {
     "missing": "Missing",  # app.js: "Missing or not verified"
     "lag": "Data lag",  # app.js: "Data lags"
     "computed": "Computed value",  # app.js: "Computed values (formula and inputs)"
-    "not_like_for_like": "Not like-for-like",  # app.js: same wording; decision 7 (KREF)
+    "not_like_for_like": "Not like-for-like",  # app.js: same wording (KREF)
     "client_data": "Client data check",  # app.js: "Apex Ridge data checks (question for the client)"
     "peer_question": "Peer-set question",  # app.js: "Peer set questions"
     "data_quality": "Filing data quality",  # app.js: same wording
     "fetch": "EDGAR error",  # app.js: "EDGAR errors"
-    "amendment": "Amendment",  # app.js: "Amendments (EDGAR index check)"; decision 20
-    "not_comparable": "Not directly comparable",  # app.js: same wording; decision 12 (Golub returns)
+    "amendment": "Amendment",  # app.js: "Amendments (EDGAR index check)"
+    "not_comparable": "Not directly comparable",  # app.js: same wording (Golub returns)
     "check_failed": "Check failed",  # app.js: "Low confidence: review before use"
 }
 

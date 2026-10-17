@@ -77,7 +77,7 @@ def test_word_keeps_every_flag_no_clean_version(tmp_path):
 
 
 def test_word_provenance_uses_the_kref_label(tmp_path):
-    """Reviewer finding: KREF's figure is never called "NAV per share", anywhere (decision 14)."""
+    """Reviewer finding: KREF's figure is never called "NAV per share", anywhere."""
     bundle, doc = _doc(tmp_path)
     first_cells = [row.cells[0].text for row in _table_after(doc, "Provenance").rows]
     assert "KREF · Book value per share" in first_cells and "KREF · NAV per share" not in first_cells

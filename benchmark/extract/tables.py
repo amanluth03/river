@@ -16,7 +16,7 @@ from ..verify import numbers_after_label, parse_numbers
 MONTHS = r"(January|February|March|April|May|June|July|August|September|October|November|December)"
 FULL_DATE = re.compile(MONTHS + r"\s+(\d{1,2}),?\s+(\d{4})")
 # "December 31," with no year after it. The lookahead also skips the comma, so the month-day
-# inside a full date like "September 30, 2025" never matches (review finding 1).
+# inside a full date like "September 30, 2025" never matches.
 MONTH_DAY = re.compile(MONTHS + r"\s+(\d{1,2})\b(?!,?\s*\d{4})")
 CLASS_LABEL = re.compile(r"\b(?:CLASS|Class)\s+([A-Z]{1,2})\b")
 UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

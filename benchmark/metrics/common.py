@@ -100,7 +100,7 @@ def chosen_candidate(record: ValueRecord) -> Candidate | None:
 def computed(fund: str, metric: str, value: Decimal, unit: str, period: date, inputs: list[Candidate],
              formula: str, check: tuple[str, bool] | None = None, basis_assumption: str = "",
              label: str | None = None, note: str = "") -> ValueRecord:
-    """A value calculated from verified inputs. Confidence (decision 33, refined by decision 38):
+    """A value calculated from verified inputs. Confidence:
       high   - arithmetic on verified inputs, and an independent reported figure agrees (the check);
       medium - arithmetic on verified inputs, no independent figure to compare with;
       low    - the independent figure disagrees, or the calculation needs an assumption.
@@ -132,7 +132,7 @@ def latest_filing_for(data: FundData, period: date) -> Filing | None:
 
 def searched_citation(data: FundData, period: date | None) -> Citation | None:
     """For a gap: a link to the report that was searched (the latest one for the period), with no quote,
-    so every cell links to a filing (decision 21)."""
+    so every cell links to a filing."""
     filing = latest_filing_for(data, period) if period else None
     filing = filing or (max(data.filings, key=lambda f: (f.period, f.filing_date)) if data.filings else None)
     if filing is None:

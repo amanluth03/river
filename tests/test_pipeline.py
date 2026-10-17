@@ -80,7 +80,7 @@ def test_trend_has_gaps_not_estimates(tmp_path):
 
 def test_kref_labeled_book_value_and_flagged_as_peer_question(tmp_path):
     bundle, _ = make_bundle(tmp_path)
-    assert bundle.table["nav_per_share"]["KREF"].label == "Book value per share"  # exact, decision 14
+    assert bundle.table["nav_per_share"]["KREF"].label == "Book value per share"  # exact label, never "NAV per share"
     assert all(p.label == "Book value per share" for p in bundle.trend["KREF"] if p.status == "ok")
     assert any(i.kind == "peer_question" and i.fund == "KREF" for i in bundle.issues)
 

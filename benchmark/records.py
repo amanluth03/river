@@ -30,7 +30,10 @@ class Citation(BaseModel):
     quote: str
     row_label: str | None = None
     column_label: str | None = None
+    column_header: str | None = None  # header text that dates the column, e.g. "Year Ended December 31, | 2025"
     char_offset: int | None = None
+    find_match: int | None = None  # the value's row is match N of find_total when searching the row label
+    find_total: int | None = None
     sha256: str | None = None
     fact_id: str | None = None  # inline XBRL element id, when the value is tagged
     concept: str | None = None  # inline XBRL concept name, e.g. us-gaap:NetAssetValuePerShare

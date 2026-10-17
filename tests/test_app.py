@@ -9,7 +9,7 @@ from tests.test_pipeline import make_bundle
 def client_with_bundle(tmp_path, monkeypatch):
     bundle, _ = make_bundle(tmp_path)
     monkeypatch.setattr(app_module, "RUNS_DIR", tmp_path / "runs")
-    return TestClient(app_module.app), bundle
+    return TestClient(app_module.app, base_url="http://127.0.0.1"), bundle
 
 
 def test_page_and_bundle_served(tmp_path, monkeypatch):
@@ -39,3 +39,9 @@ def test_run_starts_in_background_and_reports_status(tmp_path, monkeypatch):
 def test_run_rejects_a_date_that_is_not_a_quarter_end(tmp_path, monkeypatch):
     client, _ = client_with_bundle(tmp_path, monkeypatch)
     assert client.post("/api/run", json={"as_of": "2025-11-15"}).status_code == 400
+
+
+def test_requests_with_a_foreign_host_header_are_refused(tmp_path, monkeypatch):
+    # DNS rebinding: a web page that resolves its own domain to 127.0.0.1 must not reach the API.
+    client, _ = client_with_bundle(tmp_path, monkeypatch)
+    assert client.get("/api/bundle", headers={"host": "evil.example"}).status_code == 400

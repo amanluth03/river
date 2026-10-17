@@ -49,3 +49,27 @@ def test_gbdc_tagged_nav():
     c = {c.period_end: c for c in cands}[date(2025, 12, 31)]
     assert c.value == Decimal("14.84") and c.method == "ixbrl"
     assert c.citation.fact_id and c.citation.concept == "us-gaap:NetAssetValuePerShare"
+
+
+def test_dash_in_a_nav_row_is_never_a_zero_nav(tmp_path):
+    # Review finding 2: "—" means no shares outstanding, not a $0.00 NAV.
+    doc = tmp_path / "d.html"
+    doc.write_text("<html><body><p>Financial Highlights Class I</p><table>"
+                   "<tr><td></td><td>December 31, 2025</td><td>December 31, 2024</td></tr>"
+                   "<tr><td>Net asset value, beginning of period</td><td>8.55</td><td>—</td></tr>"
+                   "<tr><td>Total from investment operations</td><td>0.52</td><td>—</td></tr>"
+                   "<tr><td>Total distributions</td><td>(0.75 )</td><td>—</td></tr>"
+                   "<tr><td>Net asset value, end of period</td><td>8.32</td><td>—</td></tr></table></body></html>")
+    f = filing("N-CSR", "X-1", date(2025, 12, 31), doc.name)
+    cands = nav.candidates(FUNDS["TAKIX"], [f], fetch=lambda fl: doc, window=WINDOW)
+    assert {c.period_end: c.value for c in cands} == {date(2025, 12, 31): Decimal("8.32")}
+
+
+def test_two_class_i_tables_with_different_values_both_become_candidates(tmp_path):
+    table = ("<p>Financial Highlights Class I</p><table><tr><td></td><td>December 31, 2025</td></tr>"
+             "<tr><td>Net asset value, end of period</td><td>{v}</td></tr></table>")
+    doc = tmp_path / "d.html"
+    doc.write_text("<html><body>" + table.format(v="8.32") + table.format(v="8.40") + "</body></html>")
+    f = filing("N-CSR", "X-1", date(2025, 12, 31), doc.name)
+    cands = nav.candidates(FUNDS["TAKIX"], [f], fetch=lambda fl: doc, window=WINDOW)
+    assert sorted(c.value for c in cands) == [Decimal("8.32"), Decimal("8.40")]  # resolve() then flags PM review

@@ -178,10 +178,11 @@ def run(as_of: date = config.DEFAULT_AS_OF, progress: Callable[[str], None] = pr
                 raise EdgarError(edgar_error)
             progress(f"Reading {fund.ticker} filing index…")
             records, read = _fund_nav(fund, edgar, cache, as_of, window, issues, used, progress)
-        except EdgarError as exc:
-            issues.append(Issue(kind="fetch", fund=fund.ticker, message=str(exc)))
-            table["nav_per_share"][fund.ticker] = _missing(fund.ticker, "nav_per_share", "fetch_failed", str(exc))
-            trend[fund.ticker] = [_missing(fund.ticker, "nav_per_share", "fetch_failed", str(exc), q) for q in window]
+        except Exception as exc:  # any failure stops this fund only; the others still run (review finding 5)
+            message = str(exc) if isinstance(exc, EdgarError) else f"Error while reading {fund.ticker} filings: {exc}"
+            issues.append(Issue(kind="fetch", fund=fund.ticker, message=message))
+            table["nav_per_share"][fund.ticker] = _missing(fund.ticker, "nav_per_share", "fetch_failed", message)
+            trend[fund.ticker] = [_missing(fund.ticker, "nav_per_share", "fetch_failed", message, q) for q in window]
             continue
         _record_issues(fund, records, issues)
         table["nav_per_share"][fund.ticker] = _nav_cell(fund, records, as_of, issues)

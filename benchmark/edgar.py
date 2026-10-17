@@ -55,9 +55,13 @@ class Edgar:
     def submissions(self, cik: str) -> dict:
         """Filing index for a company. Always refetched so new filings appear; a copy is cached."""
         content = self.get_bytes(f"https://data.sec.gov/submissions/CIK{int(cik):010d}.json")
+        try:
+            data = json.loads(content)
+        except ValueError as exc:
+            raise EdgarError(f"EDGAR returned an unreadable filing index for CIK {cik}") from exc
         if self.cache:
             self.cache.store(cik, "submissions", "submissions.json", content)
-        return json.loads(content)
+        return data
 
     def fetch(self, cik: str, accession: str, filename: str):
         """Path to a cached filing document, downloading it once if needed."""

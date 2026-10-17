@@ -9,6 +9,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel
 
 from . import config, export_excel, pipeline
@@ -17,6 +18,9 @@ STATIC = Path(__file__).parent / "static"
 RUNS_DIR = config.RUNS_DIR
 
 app = FastAPI(title="Apex Ridge peer benchmark")
+# Only answer requests addressed to this machine. Blocks DNS-rebinding: a web page that points its own
+# domain at 127.0.0.1 still sends its own Host header, which is refused here.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 

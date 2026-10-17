@@ -62,16 +62,21 @@ def _book_value_check(hit, i) -> tuple[str | None, bool | None]:
 
 def _from_table(fund, filing, path, window, label_regex, class_label, section, check) -> list[Candidate]:
     cands = []
-    for hit in tables.find_row(path, label_regex, class_label)[:1]:  # first matching table in the document
+    # Every matching table becomes a candidate source. Two tables claiming the same class with
+    # different values then surface as a same-filing conflict for the PM instead of a silent pick.
+    for hit in tables.find_row(path, label_regex, class_label):
         for i, (period, value) in enumerate(zip(hit.column_dates, hit.values)):
             if not window[0] <= period <= window[1]:
+                continue
+            if value <= 0:  # a dash (no shares outstanding) or a negative is never a NAV
                 continue
             note, ok = check(hit, i)
             cands.append(Candidate(
                 fund=fund.ticker, metric="nav_per_share", value=value, unit="usd", period_end=period,
                 method="table", column_index=i, is_amendment=filing.amendment,
                 reconciliation=note, reconciliation_ok=ok,
-                citation=_citation(fund, filing, section, hit.quote, hit.label, period)))
+                citation=_citation(fund, filing, section, hit.quote, hit.label, period,
+                                   column_header=hit.column_headers[i])))
     return cands
 
 

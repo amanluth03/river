@@ -14,7 +14,9 @@ from ..verify import numbers_after_label, parse_numbers
 
 MONTHS = r"(January|February|March|April|May|June|July|August|September|October|November|December)"
 FULL_DATE = re.compile(MONTHS + r"\s+(\d{1,2}),?\s+(\d{4})")
-MONTH_DAY = re.compile(MONTHS + r"\s+(\d{1,2})\b,?(?!\s*\d{4})")
+# "December 31," with no year after it. The lookahead also skips the comma, so the month-day
+# inside a full date like "September 30, 2025" never matches (review finding 1).
+MONTH_DAY = re.compile(MONTHS + r"\s+(\d{1,2})\b(?!,?\s*\d{4})")
 CLASS_LABEL = re.compile(r"\b(?:CLASS|Class)\s+([A-Z]{1,2})\b")
 UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -29,6 +31,7 @@ class RowHit:
     heading: str  # text just before the table, for the citation's section
     table: object = field(repr=False)
     path: Path = field(repr=False)
+    column_headers: list[str] = field(default_factory=list)  # header text that gave each column its date
 
 
 def parse_number(cell_text: str) -> Decimal | None:
@@ -59,44 +62,51 @@ def _is_header_row(row) -> bool:
     return not numbers or all(_is_year(n) for n in numbers)
 
 
-def _column_dates(header_rows, preceding: str, count: int) -> list[date] | None:
+def _column_dates(header_rows, preceding: str, count: int) -> tuple[list[date], list[str]] | None:
+    """Period end for each value column, plus the header text each date came from (kept as evidence)."""
     # Case 1: a header row whose cells each carry a full date (ranges take the end date).
     for row in header_rows:
-        dates = []
+        dates, texts = [], []
         for cell in _cells(row):
             found = FULL_DATE.findall(cell)
             if found:
                 dates.append(_to_date(*found[-1]))
+                texts.append(" ".join(found[-1][:2]) + ", " + found[-1][2])
         if len(dates) == count:
-            return dates
+            return dates, texts
     # Case 2: mixed. "Six Months Ended June 30, 2025" columns first, then one "Year Ended December 31,"
     # group over a row of bare years. Accepted only in exactly that order, so dates can't be shuffled.
     years_rows = [[n for n in parse_numbers(" ".join(_cells(r))) if _is_year(n)] for r in header_rows]
     for row in header_rows:
-        kinds, fulls, month_day = [], [], None
+        kinds, fulls, texts, month_day = [], [], [], None
         for cell in _cells(row):
             found = FULL_DATE.findall(cell)
             if found:
                 kinds.append("F")
                 fulls.append(_to_date(*found[-1]))
+                texts.append(" ".join(found[-1][:2]) + ", " + found[-1][2])
             elif MONTH_DAY.search(cell):
                 kinds.append("M")
                 month_day = MONTH_DAY.findall(cell)[-1]
         if fulls and kinds == ["F"] * len(fulls) + ["M"]:
             for years in years_rows:
                 if len(fulls) + len(years) == count:
-                    return fulls + [_to_date(month_day[0], month_day[1], int(y)) for y in years]
-    # Case 3: a row of bare years plus a "December 31," somewhere in the header or just above it.
+                    md_text = f"{month_day[0]} {month_day[1]},"
+                    return (fulls + [_to_date(month_day[0], month_day[1], int(y)) for y in years],
+                            texts + [f"Year Ended {md_text} | {int(y)}" for y in years])
+    # Case 3: a row of bare years plus one "December 31," in the header or just above it.
+    # Refused if the header also has a full date or two different month-days: the order would be a guess.
     header_text = " ".join(" ".join(_cells(r)) for r in header_rows)
-    month_days = MONTH_DAY.findall(header_text) or MONTH_DAY.findall(preceding)
-    if not month_days:
+    if FULL_DATE.search(header_text):
         return None
-    month, day = month_days[-1]
-    for row in header_rows:
-        cells = _cells(row)
-        years = [n for n in parse_numbers(" ".join(cells)) if _is_year(n)]
+    month_days = set(MONTH_DAY.findall(header_text)) or set(MONTH_DAY.findall(preceding))
+    if len(month_days) != 1:
+        return None
+    month, day = month_days.pop()
+    for years in years_rows:
         if len(years) == count:
-            return [_to_date(month, day, int(y)) for y in years]
+            return ([_to_date(month, day, int(y)) for y in years],
+                    [f"Year Ended {month} {day}, | {int(y)}" for y in years])
     return None
 
 
@@ -112,6 +122,23 @@ def _table_of(row):
     return node
 
 
+def _preceding_text(element, limit: int = 400) -> str:
+    """Text just before this element in the document, found by walking back through the tree
+    (not by searching for the table's text, which finds the first of several identical tables)."""
+    parts, size, node = [], 0, element
+    while node is not None and size < limit:
+        prev = node.getprevious()
+        if prev is None:
+            node = node.getparent()
+            continue
+        text = textnorm.element_text(prev)
+        if text:
+            parts.append(text)
+            size += len(text)
+        node = prev
+    return " ".join(reversed(parts))[-limit:]
+
+
 def _share_class(table, header_rows, preceding: str) -> str | None:
     in_table = CLASS_LABEL.findall(" ".join(" ".join(_cells(r)) for r in header_rows))
     if in_table:
@@ -120,7 +147,7 @@ def _share_class(table, header_rows, preceding: str) -> str | None:
     return before[-1] if before else None
 
 
-def _hit_for_row(row, table, label_regex, path, doc_text) -> RowHit | None:
+def _hit_for_row(row, table, label_regex, path) -> RowHit | None:
     cells = _cells(row)
     if not cells or not re.match(label_regex, cells[0], re.IGNORECASE):
         return None
@@ -134,21 +161,19 @@ def _hit_for_row(row, table, label_regex, path, doc_text) -> RowHit | None:
         if r is row or not _is_header_row(r):
             break
         header_rows.append(r)
-    table_text = textnorm.element_text(table)
-    pos = doc_text.find(table_text[:300])
-    preceding = doc_text[max(0, pos - 400):pos] if pos >= 0 else ""
-    dates = _column_dates(header_rows, preceding, len(values))
-    if dates is None:
+    preceding = _preceding_text(table)
+    columns = _column_dates(header_rows, preceding, len(values))
+    if columns is None:
         return None
+    dates, headers = columns
     return RowHit(label=cells[0], values=values, column_dates=dates, quote=quote,
                   share_class=_share_class(table, header_rows, preceding),
-                  heading=preceding[-200:].strip(), table=table, path=Path(path))
+                  heading=preceding[-200:].strip(), table=table, path=Path(path), column_headers=headers)
 
 
 def find_row(path: Path, label_regex: str, class_label: str | None) -> list[RowHit]:
     """Every table row in the document whose label matches, restricted to one share class if given."""
     root = textnorm.parse_html(path)
-    doc_text = textnorm.document_text(path)
     prefix = _literal_prefix(label_regex)
     rows = root.xpath("//tr[contains(translate(normalize-space(translate(string(.), $nb, ' ')), $up, $lo), $p)]",
                       nb=" ", up=UPPER, lo=UPPER.lower(), p=prefix)
@@ -157,7 +182,7 @@ def find_row(path: Path, label_regex: str, class_label: str | None) -> list[RowH
         table = _table_of(row)
         if table is None:
             continue
-        hit = _hit_for_row(row, table, label_regex, path, doc_text)
+        hit = _hit_for_row(row, table, label_regex, path)
         if hit is None:
             continue
         if class_label is not None and hit.share_class != class_label:
@@ -168,9 +193,8 @@ def find_row(path: Path, label_regex: str, class_label: str | None) -> list[RowH
 
 def row_in_same_table(hit: RowHit, label_regex: str) -> RowHit | None:
     """Another row from the same table with the same columns (for reconciliations)."""
-    doc_text = textnorm.document_text(hit.path)
     for row in hit.table.xpath(".//tr"):
-        other = _hit_for_row(row, hit.table, label_regex, hit.path, doc_text)
+        other = _hit_for_row(row, hit.table, label_regex, hit.path)
         if other is not None and other.column_dates == hit.column_dates:
             return other
     return None

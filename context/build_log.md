@@ -80,3 +80,9 @@ Tip: links starting `sec.gov/ix?doc=` open the SEC inline-XBRL viewer. Use Ctrl+
 | KREF | $15.18 H | $15.24 H | $14.84 H | $14.76 H | $14.44 H | $13.84 H | $13.78 H | $13.04 H |
 
 - **ASSUME** KREF book value per share uses KREF's own "Total shares outstanding" (includes deferred stock units), as KREF reports it. Pending client confirmation (decision 14).
+
+## 2026-10-16 — Independent review fixes
+
+- **DONE** Fresh code review: 0 Critical, 5 Important (all latent: none changed a current value), 7 Minor deferred. A security check flagged DNS rebinding on the local server. All 6 fixed with failing-first tests; 72 tests pass; live rerun gives the same 32 NAV points.
+- **DONE** Gate now also re-derives each table value's period from its column header and confirms that header sits above the row. Citations carry a find hint (TAKIX $8.32: "Net asset value, end of period", match 2 of 7 = the Class I table).
+- **FIND** The "open at this row" link would have opened TAKIX's Class A table ($8.28), not Class I ($8.32). Removed (decision 26 revised).

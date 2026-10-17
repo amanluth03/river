@@ -75,3 +75,23 @@ def test_parse_numbers_ignores_glued_footnotes_and_reads_parentheses():
 
 def test_parse_numbers_reads_a_standalone_dash_as_zero():
     assert verify.parse_numbers("(0.54 ) - (0.90 )") == [Decimal("-0.54"), Decimal("0"), Decimal("-0.90")]
+
+
+def test_gate_rejects_a_column_header_that_does_not_give_the_period(cache):
+    cand = make("10.77", "Net asset value, end of period $ 10.77 $ 10.83")
+    cand.citation.column_header = "Consolidated Financial Highlights Class I"  # present in doc, but no date
+    ok, reason = verify.check(cand, cache)
+    assert not ok and "column header" in reason
+
+
+def test_gate_records_which_match_of_the_row_label_holds_the_value(tmp_path):
+    c = Cache(tmp_path)
+    doc = (b"<html><body><table><tr><td>Net asset value, end of period</td><td>8.28</td></tr></table>"
+           b"<table><tr><td>Net asset value, end of period</td><td>8.32</td></tr></table></body></html>")
+    c.store("1", "A-1", "d.htm", doc)
+    cit = Citation(cik="1", form="N-CSR", accession="A-1", url="u", document="d.htm", section="s",
+                   quote="Net asset value, end of period 8.32", row_label="Net asset value, end of period")
+    cand = Candidate(fund="TAKIX", metric="nav_per_share", value=Decimal("8.32"), unit="usd",
+                     period_end=date(2025, 12, 31), method="table", citation=cit, column_index=0)
+    assert verify.check(cand, c)[0]
+    assert cand.citation.find_match == 2 and cand.citation.find_total == 2

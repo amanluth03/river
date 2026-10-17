@@ -93,13 +93,14 @@ function openPanel(rec, el) {
     if (c.cik === "client") {
       h += `<dt>Source</dt><dd>Client-provided file ${esc(c.document)}</dd><dt>Row / column</dt><dd>${esc(c.row_label)} / ${esc(c.column_label)}</dd>`;
     } else {
-      const find = `${c.url}#:~:text=${encodeURIComponent(c.row_label || c.quote.slice(0, 40))}`;
       h += `<dt>Filing</dt><dd>${esc(c.form)} · ${esc(c.accession)}</dd>`;
       h += `<dt>Filed</dt><dd>${esc(c.filing_date)}</dd>`;
       h += `<dt>Section</dt><dd>${esc(c.section)}</dd>`;
       if (c.row_label) h += `<dt>Row</dt><dd>${esc(c.row_label)}${c.column_label ? ` · column ${esc(c.column_label)}` : ""}</dd>`;
       if (c.fact_id) h += `<dt>XBRL tag</dt><dd>${esc(c.concept)} (element ${esc(c.fact_id)})</dd>`;
-      h += `<dt>Document</dt><dd><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.document)}</a> · <a href="${esc(find)}" target="_blank" rel="noopener">open at this row</a></dd>`;
+      h += `<dt>Document</dt><dd><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.document)}</a></dd>`;
+      if (c.find_match) h += `<dt>Find it</dt><dd>Search the page for "${esc(c.row_label)}": it is match ${c.find_match} of ${c.find_total}.</dd>`;
+      if (c.column_header) h += `<dt>Column header</dt><dd>${esc(c.column_header.replace(" | ", " "))}</dd>`;
       if (c.sha256) h += `<dt>File hash</dt><dd class="muted">SHA-256 ${esc(c.sha256.slice(0, 16))}… (verified unchanged)</dd>`;
     }
     h += `</dl><div class="muted">Source text${c.char_offset != null ? ` (found at character ${c.char_offset})` : ""}:</div><blockquote>${highlight(c.quote, rec)}</blockquote>`;

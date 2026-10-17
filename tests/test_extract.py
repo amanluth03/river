@@ -80,3 +80,36 @@ def test_mixed_header_six_months_then_fiscal_years():
 
 def test_mixed_header_with_ambiguous_order_is_refused():
     assert tables.find_row(FX / "takix_ncsrs_2025-06.html", NAV_END, class_label="M") == []
+
+
+def _doc(tmp_path, body):
+    p = tmp_path / "d.htm"
+    p.write_text(f"<html><body>{body}</body></html>")
+    return p
+
+
+def test_month_day_inside_a_full_date_is_not_used_for_year_columns(tmp_path):
+    # Review finding 1: "September 30, 2025" must not lend "September 30" to the fiscal-year columns.
+    doc = _doc(tmp_path, "<p>Financial Highlights Class I</p><table>"
+               "<tr><td></td><td>Six Months Ended</td><td>Year Ended March 31,</td></tr>"
+               "<tr><td></td><td>September 30, 2025</td><td>2025</td><td>2024</td></tr>"
+               "<tr><td>Net asset value, end of period</td><td>10.77</td><td>10.83</td><td>10.55</td></tr></table>")
+    hits = tables.find_row(doc, NAV_END, class_label="I")
+    assert all(date(2024, 9, 30) not in h.column_dates for h in hits)
+    assert hits == []  # mixed shape we can't order with certainty: refuse
+
+
+def test_class_comes_from_the_heading_of_each_table_not_the_first_match(tmp_path):
+    # Review finding 3: identical tables must not all inherit the first table's heading.
+    long_row = "<tr><td>Per Share Operating Data " + "for a share outstanding throughout the period " * 8 + "</td></tr>"
+    table = ("<table><tr><td></td><td>December 31, 2025</td></tr>" + long_row +
+             "<tr><td>Net asset value, end of period</td><td>{v}</td></tr></table>")
+    doc = _doc(tmp_path, "<p>Financial Highlights Class A</p>" + table.format(v="8.28") +
+               "<p>Financial Highlights Class I</p>" + table.format(v="8.32"))
+    hits = tables.find_row(doc, NAV_END, class_label="I")
+    assert [h.values[0] for h in hits] == [Decimal("8.32")]
+
+
+def test_hit_records_the_header_evidence_for_each_column():
+    hit = tables.find_row(FX / "takix_ncsr_2025.html", NAV_END, class_label="I")[0]
+    assert hit.column_headers[0] == "Year Ended December 31, | 2025"

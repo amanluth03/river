@@ -102,3 +102,16 @@ def test_filing_read_but_no_value_is_not_found_not_not_reported(tmp_path):
 def test_filings_before_the_window_are_not_downloaded(tmp_path):
     bundle, _ = make_bundle(tmp_path)  # the 2023 amendment's document doesn't exist; fetching it would fail
     assert all(f["accession"] != "0001213900-24-027119" for f in bundle.filings)
+
+
+def test_unexpected_error_in_one_fund_does_not_stop_the_run(tmp_path):
+    class Broken(FakeEdgar):
+        def submissions(self, cik):
+            if cik == "0001631596":
+                raise ValueError("Expecting value: line 1 column 1 (char 0)")
+            return super().submissions(cik)
+    cache = Cache(tmp_path / "cache")
+    bundle = pipeline.run(date(2025, 12, 31), progress=lambda m: None, edgar=Broken(cache), cache=cache,
+                          runs_dir=tmp_path / "runs")
+    assert bundle.table["nav_per_share"]["KREF"].status == "fetch_failed"
+    assert bundle.table["nav_per_share"]["TAKIX"].status == "ok"

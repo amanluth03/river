@@ -12,7 +12,7 @@
     "normalization_assumptions": [
       "Use the figure as reported; do not convert it. Show the fund's own annualized / not annualized footnote next to the value.",
       "CCLFX semi-annual figures are marked 'Not annualized' (footnote 5); GBDC quarterly figures are marked annualized (footnote *). These are different bases, so they must be labeled, not compared silently.",
-      "Never annualize a not-annualized figure by scaling (for example doubling a six-month rate); that is an estimate, not a sourced value.",
+      "Never annualize a not-annualized figure by scaling (for example doubling a six-month rate); that is an estimate, not a sourced value. [Proposed by Aman, not a client decision; decision 77]",
       "Class I only for the interval funds."
     ],
     "owner": "Apex Ridge analytics team (to confirm)",

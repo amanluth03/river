@@ -11,12 +11,14 @@ sentence and no other. If no such words exist, it falls back to the nearest elem
 the sentence, and failing that to the plain document URL (the record's reason says which).
 The plain document URL is always the part of the link before "#".
 """
+import re
 from pathlib import Path
 from urllib.parse import quote
 
 from .. import textnorm
 from ..config import (FEE_ANCHOR_MAX_CHARS, FEE_FRAGMENT_MAX_EXTRA_WORDS, FEE_FRAGMENT_UNSAFE_CHARS,
-                      FEE_QUOTE_CHARS, FEE_SECTION, FEES_IN_NARRATIVE, FEES_NOT_EXTRACTED)
+                      FEE_QUOTE_CHARS, FEE_SECTION, FEES_IN_NARRATIVE, FEES_NOT_EXTRACTED,
+                      INCENTIVE_TERMS, NO_INCENTIVE_TERMS_NOTE)
 from ..records import ValueRecord
 from .common import FundData, citation, latest_filing_for, missing
 
@@ -29,12 +31,9 @@ LANDING_NOTE = {
 }
 
 
-def records(data: FundData) -> dict[str, ValueRecord]:
+def _linked_record(data: FundData, filing, metric: str, note: str = "") -> ValueRecord:
+    """A "Not extracted in v1" cell whose citation lands on the fee sentence of `filing`."""
     fund = data.fund
-    latest = max(data.filings, key=lambda f: (f.period, f.filing_date)) if data.filings else None
-    if latest is None:
-        return {m: missing(fund.ticker, m, "not_extracted", FEES_NOT_EXTRACTED) for m in METRICS}
-    filing = latest_filing_for(data, latest.period)
     path = data.fetch(filing)
     text = textnorm.document_text(path)
     phrase = FEE_SECTION[fund.ticker]
@@ -51,7 +50,31 @@ def records(data: FundData) -> dict[str, ValueRecord]:
         where.url, how = landing_url(where.url, path, text, offset, phrase)
         reason = (f"{FEES_NOT_EXTRACTED}: fee terms are at the linked sentence ({filing.form} "
                   f"{filing.accession}); {LANDING_NOTE[how]}.")
-    return {m: missing(fund.ticker, m, "not_extracted", reason, filing.period, citation=where) for m in METRICS}
+    return missing(fund.ticker, metric, "not_extracted", reason, filing.period, citation=where, note=note)
+
+
+def _annual_without_incentive_terms(data: FundData):
+    """The latest annual report, if its text never mentions incentive-fee terms (checked on every run, so the
+    note can't go stale). Absence of terms is all we say: never that the fund charges no incentive fee."""
+    annuals = [f for f in data.filings if f.form in (data.fund.annual_form, data.fund.annual_form + "/A")]
+    if not annuals:
+        return None
+    annual = max(annuals, key=lambda f: (f.period, f.filing_date))
+    text = textnorm.document_text(data.fetch(annual))
+    return None if re.search(INCENTIVE_TERMS, text, re.IGNORECASE) else annual
+
+
+def records(data: FundData) -> dict[str, ValueRecord]:
+    fund = data.fund
+    latest = max(data.filings, key=lambda f: (f.period, f.filing_date)) if data.filings else None
+    if latest is None:
+        return {m: missing(fund.ticker, m, "not_extracted", FEES_NOT_EXTRACTED) for m in METRICS}
+    filing = latest_filing_for(data, latest.period)
+    out = {m: _linked_record(data, filing, m) for m in METRICS}
+    annual = _annual_without_incentive_terms(data)
+    if annual is not None:  # client, W3: say so, and link the annual report's nearest fee section
+        out["incentive_fee"] = _linked_record(data, annual, "incentive_fee", note=NO_INCENTIVE_TERMS_NOTE)
+    return out
 
 
 def landing_url(url: str, path: Path, text: str, offset: int, phrase: str) -> tuple[str, str]:

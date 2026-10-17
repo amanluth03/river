@@ -1,7 +1,9 @@
 // Review page: reads the latest run bundle and renders Table, Exceptions and NAV trend.
 // Every value is clickable and opens its source in the side panel.
 
-const AS_OF_CHOICES = ["2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31"];
+// Quarter-end choices and the default (Q4 2025) come from the server's config (/api/settings).
+let AS_OF_CHOICES = ["2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31"];
+let DEFAULT_AS_OF = AS_OF_CHOICES[0];
 const STATUS_SHORT = {
   not_found: "not found", not_verified: "not verified", not_reported: "not reported by fund",
   not_applicable: "not applicable", not_extracted: "not extracted in v1", excluded_by_rule: "excluded",
@@ -70,7 +72,9 @@ function cellHtml(rec, metric, fund) {
     return `<td ${attrs} title="${esc(rec.reason)}">${amendHtml}<span class="conflict">${esc(rec.gap)}</span>${both}</td>`;
   }
   if (rec.status !== "ok") {
-    return `<td ${attrs} title="${esc(rec.reason)}">${amendHtml}${label}<span class="gap">${esc(rec.gap)}</span>${rec.note ? `<span class="note">${esc(rec.note)}</span>` : ""}</td>`;
+    const feeLink = rec.status === "not_extracted" && rec.citation?.url?.startsWith("http")
+      ? ` · <a class="fee-link" href="${esc(rec.citation.url)}" target="_blank" rel="noopener">view fee terms ↗</a>` : "";
+    return `<td ${attrs} title="${esc(rec.reason)}">${amendHtml}${label}<span class="gap">${esc(rec.gap)}${feeLink}</span>${rec.note ? `<span class="note">${esc(rec.note)}</span>` : ""}</td>`;
   }
   const dot = rec.confidence ? `<span class="dot ${rec.confidence}" title="${rec.confidence} confidence"></span>` : "";
   const computedTag = rec.method === "computed" ? `<span class="note">(computed)</span>` : "";
@@ -310,21 +314,29 @@ function selectTab(name) {
 }
 
 // Quarter-end picker: four small buttons (a native dropdown opened far too large on the analyst's screen).
-let selectedAsOf = AS_OF_CHOICES[0];
+let selectedAsOf = DEFAULT_AS_OF;
 const quarterName = (d) => { const [y, m] = d.split("-"); return `Q${+m / 3} ${y}`; };
 function setAsOf(d) {
   selectedAsOf = d;
   document.querySelectorAll("#as-of button").forEach((b) => b.setAttribute("aria-checked", b.dataset.date === d));
 }
-$("#as-of").innerHTML = AS_OF_CHOICES.map((d) =>
-  `<button type="button" role="radio" data-date="${d}" title="${d}">${quarterName(d)}</button>`).join("");
-document.querySelectorAll("#as-of button").forEach((b) => b.addEventListener("click", () => pickQuarter(b.dataset.date)));
-$("#export-btn").addEventListener("click", () => exportFile("xlsx"));
-$("#export-word-btn").addEventListener("click", () => exportFile("docx"));
-setAsOf(selectedAsOf);
+function buildPicker() {
+  $("#as-of").innerHTML = AS_OF_CHOICES.map((d) =>
+    `<button type="button" role="radio" data-date="${d}" title="${d}">${quarterName(d)}</button>`).join("");
+  document.querySelectorAll("#as-of button").forEach((b) => b.addEventListener("click", () => pickQuarter(b.dataset.date)));
+  setAsOf(selectedAsOf);
+}
 const closePanel = () => { $("#panel").hidden = true; document.body.classList.remove("panel-open"); };
 $("#run-btn").addEventListener("click", startRun);
 $("#panel-close").addEventListener("click", closePanel);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePanel(); });
 document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => selectTab(b.dataset.tab)));
-loadBundle();
+// On load: Q4 2025 (config default) is shown, not whichever quarter was run last.
+(async () => {
+  try {
+    const cfg = await (await fetch("/api/settings")).json();
+    AS_OF_CHOICES = cfg.as_of_choices; DEFAULT_AS_OF = cfg.default_as_of; selectedAsOf = DEFAULT_AS_OF;
+  } catch (e) { /* keep the built-in choices */ }
+  buildPicker();
+  if (!(await loadBundle(DEFAULT_AS_OF))) showStatus(`No run for ${quarterName(DEFAULT_AS_OF)} yet. Press Run.`);
+})();

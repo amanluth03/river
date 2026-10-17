@@ -69,6 +69,13 @@ def favicon():
     return Response(status_code=204)
 
 
+@app.get("/api/settings")
+def settings():
+    """The as-of choices and default for the page, from config (the default is Apex's latest quarter)."""
+    return {"default_as_of": config.DEFAULT_AS_OF,
+            "as_of_choices": list(reversed(config.window_quarters(config.DEFAULT_AS_OF, count=4)))}
+
+
 @app.get("/api/bundle")
 def bundle(as_of: date | None = None):
     """The latest run, or the latest run for one quarter-end when `as_of` is given."""

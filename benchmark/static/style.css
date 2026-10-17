@@ -117,3 +117,4 @@ body.panel-open { padding-right: min(552px, 100vw); }
 .panel table.csv-row td:first-child { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 .panel table.csv-row td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 .panel table.csv-row tr.cited td { background: #fde68a; font-weight: 600; color: var(--fg); }
+.bench a.fee-link { color: var(--accent); white-space: nowrap; }

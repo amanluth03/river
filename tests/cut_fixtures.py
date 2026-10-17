@@ -31,7 +31,9 @@ FIXTURES = {
         "1735964/000121390024106851/ea0221175-01_ncsrs.htm", ["Net asset value, end of period"], []),
     "cclfx_ncsr_2025-03.html": (
         "1735964/000121390025052571/ea0241342-01_ncsr.htm",
-        ["Net asset value, end of period", "Cliffwater Corporate Lending Fund (Inception Date"], []),
+        ["Net asset value, end of period", "Cliffwater Corporate Lending Fund (Inception Date",
+         "Secured credit facility (Note 2)"],
+        ["the Fund pays the Investment Manager a monthly Investment Management Fee"]),
     "takix_ncsr_2025_full.html": (
         "1725472/000172547226000003/ctac-20251231.htm",
         ["Net asset value, end of period", "Note-on-note loans", "I Share"],

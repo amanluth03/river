@@ -80,3 +80,12 @@ def test_word_export_route(tmp_path, monkeypatch):
     assert resp.status_code == 200 and resp.content[:2] == b"PK"
     assert resp.headers["X-Saved-Path"].endswith(".docx")
     assert client.get("/api/export.pdf").status_code == 404
+
+
+def test_default_as_of_is_q4_2025():
+    from fastapi.testclient import TestClient
+    from benchmark import app as app_module
+    client = TestClient(app_module.app, base_url="http://127.0.0.1")
+    cfg = client.get("/api/settings").json()
+    assert cfg["default_as_of"] == "2025-12-31" and cfg["as_of_choices"][0] == "2025-12-31"
+    assert cfg["as_of_choices"] == ["2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31"]

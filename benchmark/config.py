@@ -253,7 +253,14 @@ FEE_SECTION = {
     "GBDC": "The base management fee is calculated at an annual rate equal to",  # GBDC-Q126 Note 3
     "KREF": "our Manager is entitled to a quarterly management fee",  # KREF-K25 MD&A
 }
-FEE_QUOTE_CHARS = 400  # how much of the fee sentence the citation shows (enough for the rate and its base)
+FEE_QUOTE_CHARS = 400
+# Client, W3: if the latest annual report never mentions incentive-fee terms (CCLFX N-CSR
+# 0001213900-25-052571 has 0 matches for "incentive" or "hurdle"; TAKIX, GBDC and KREF reports do), the
+# incentive cell says so and links the nearest fee section. Never "charges no incentive fee": no quote says it.
+INCENTIVE_TERMS = r"incentive|hurdle"
+NO_INCENTIVE_TERMS_NOTE = "Annual report states no incentive-fee terms; see prospectus fee table"
+# Client, W3: the fee cell shows its link in the cell itself.
+FEE_LINK_TEXT = "view fee terms ↗"  # how much of the fee sentence the citation shows (enough for the rate and its base)
 
 # ---------------------------------------------------------------- text handling
 # HTML tags that end a visual unit. A space is inserted there so "$" and "8.32" in two table cells

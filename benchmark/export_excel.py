@@ -9,7 +9,7 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
-from .config import AMENDMENT_FLAG
+from .config import AMENDMENT_FLAG, FEE_LINK_TEXT
 from .records import RunBundle, ValueRecord
 
 BOLD = Font(bold=True)
@@ -35,7 +35,10 @@ def cell_text(rec: ValueRecord) -> str:
     so no export is a "clean" version: amendment flags, conflicts, lags, computed notation all appear."""
     lines = [AMENDMENT_FLAG] if AMENDMENT_FLAG in rec.flags else []
     if rec.value is None:
-        lines.append(f"{rec.gap} ({rec.label})" if rec.label else rec.gap)
+        gap = f"{rec.gap} ({rec.label})" if rec.label else rec.gap
+        if rec.status == "not_extracted" and rec.citation and rec.citation.url.startswith("http"):
+            gap += f" · {FEE_LINK_TEXT}"  # client, W3: the link is visible in the cell (the cell is the link)
+        lines.append(gap)
         if rec.status == "conflict":
             lines += [f"{c.value}% · {c.citation.section} ({c.citation.form} {c.citation.accession})"
                       for c in rec.candidates]

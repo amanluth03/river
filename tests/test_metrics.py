@@ -128,3 +128,36 @@ def test_conflict_cell_text_lists_both_values(bundle):
     from benchmark.export_excel import cell_text
     text = cell_text(cell(bundle, "net_return_1y", "CCLFX"))
     assert text.startswith("Conflict: PM to choose") and "11.78%" in text and "11.58%" in text
+
+
+def test_window3_rules_hold_at_another_as_of(tmp_path):
+    """Client, W3: the conflict and the "Not reported by fund" rule apply at every as-of, not just Q4 2025."""
+    from tests.test_pipeline import FakeEdgar
+    from benchmark import pipeline
+    from benchmark.cache import Cache
+    class NoMissingDocs(FakeEdgar):  # at 3/31/25 the window reaches 2023, where the test index has a dummy row
+        def submissions(self, cik):
+            subs = super().submissions(cik)
+            recent = subs["filings"]["recent"]
+            keep = [i for i, doc in enumerate(recent["primaryDocument"]) if doc != "missing_on_purpose.html"]
+            subs["filings"]["recent"] = {k: [v[i] for i in keep] for k, v in recent.items()}
+            return subs
+    cache = Cache(tmp_path / "cache")
+    q1 = pipeline.run(date(2025, 3, 31), progress=lambda m: None, edgar=NoMissingDocs(cache), cache=cache,
+                      runs_dir=tmp_path / "runs")
+    one_year = q1.table["net_return_1y"]["CCLFX"]
+    assert one_year.status == "conflict" and one_year.value is None
+    assert sorted(str(c.value) for c in one_year.candidates) == ["11.58", "11.78"]
+    coverage = q1.table["leverage_regulatory"]["CCLFX"]
+    assert coverage.value is None and coverage.gap == "Not reported by fund" and "computed, low confidence" in coverage.note
+
+
+def test_fee_cells_show_their_link_and_cclfx_incentive_note(bundle):
+    from benchmark.export_excel import cell_text
+    for fund in ("CCLFX", "TAKIX", "GBDC", "KREF"):
+        assert cell_text(cell(bundle, "management_fee", fund)).startswith("Not extracted in v1 · view fee terms ↗")
+    cclfx = cell(bundle, "incentive_fee", "CCLFX")
+    assert cclfx.note == "Annual report states no incentive-fee terms; see prospectus fee table"
+    assert cclfx.citation.form == "N-CSR" and cclfx.citation.accession == "0001213900-25-052571"
+    assert "#:~:text=" in cclfx.citation.url  # lands on the annual report's fee sentence
+    assert all(cell(bundle, "incentive_fee", f).note == "" for f in ("TAKIX", "GBDC", "KREF"))

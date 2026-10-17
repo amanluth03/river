@@ -22,7 +22,7 @@ EDGAR index ─► filing list ─► download + cache ─► extract ─► ver
 
 ## 3. Key decisions and reasoning
 
-The full log, with alternatives and costs, is `context/decisions.md` (75 rows). The ones that shape the output:
+The full log, with alternatives and costs, is `context/decisions.md` (77 rows). The ones that shape the output:
 
 | Decision | Reason |
 |---|---|
@@ -61,7 +61,7 @@ The full log, with alternatives and costs, is `context/decisions.md` (75 rows). 
 
 **Amendments:** each run checks every fund's EDGAR index for `/A` filings. A value whose source, or any input's source, was amended shows **"Superseded by amendment: re-check"** in the cell itself, styled red, on the page, in Excel and in Word, and is listed in Exceptions. The analyst re-pulls (flag-only approved for v1 in Window 3). Cliffwater's two amendments to its 9/30/23 report are detected; no value shown at 12/31/25 cites an amended filing.
 
-**Tests:** 160 automated tests, all passing, run offline on extracts cut verbatim from the real filings. Among them: every shown value passes the gate again, no cell is blank, one fund failing doesn't stop the run, every competitor cell links to a filing, Word cells match Excel cells, and each fee link targets text found once in its document.
+**Tests:** 163 automated tests, all passing, run offline on extracts cut verbatim from the real filings. Among them: every shown value passes the gate again, no cell is blank, one fund failing doesn't stop the run, every competitor cell links to a filing, Word cells match Excel cells, and each fee link targets text found once in its document.
 
 **Result at 12/31/25:**
 
@@ -101,6 +101,9 @@ Dana named two ways this fails. **A citation that doesn't lead to its number:** 
 | EDGAR outage | Retries; a failure stops only that fund's column; cached reruns work offline |
 | Key-person dependence | `config.py` (every constant sourced), `docs/CODE_TOUR.md`, decision log, tests on real values |
 
-## 8. Open questions for the client
+## 8. Open items for next client review
 
-Raised in Window 3 and not overruled, to confirm explicitly: lagged figures shown with their lag (Cliffwater returns as of 3/31/25), and KREF D/E on gross debt (4.00x) with its own 3.9x net of cash in the note. Still open: whether KREF stays in the peer set (the CIO's call), and who at Apex Ridge owns each custom-metric definition.
+- **Cliffwater returns shown with their lag** (as of 3/31/25, 3 quarters behind). Applies decisions 4 and 9: each fund's latest report on or before the as-of date, with the lag shown. Owner: Aman.
+- **KREF economic leverage on gross debt** (4.00x). Applies decision 10 (total debt ÷ net assets); the note carries the net-of-cash recomputation (3.93x) and KREF's own 2.2x and 3.9x. Owner: Aman.
+- **Turnover definition:** "never annualize a not-annualized figure by scaling" is Proposed (Aman), not yet a client decision.
+- Still with the client: whether KREF stays in the peer set (the CIO's call), and who at Apex Ridge owns each custom-metric definition.

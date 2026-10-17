@@ -4,17 +4,17 @@ Pulls competitor filings from SEC EDGAR, extracts benchmark metrics, checks ever
 
 **Rule one: a gap beats a wrong number.** A value appears only if its source text was found verbatim in the cached filing and the number was read back out of that text. A computed value (leverage, distribution yield) appears only if every input passed that check. Otherwise the cell says what is missing and why.
 
-## Status (milestone 2, for Window 3)
+## Status (after Window 3)
 
 All nine deck rows are filled for every fund, from the filings, as of Dec 31, 2025:
 
 | Row | CCLFX | TAKIX | GBDC | KREF |
 |---|---|---|---|---|
-| Net return 1Y / 3Y / 5Y | 11.78 / 10.69 / 10.98% (as of 3/31/25) | 6.27% / Not reported by fund / 8.21% | Return on average net assets 9.36% (FY to 9/30/25), "Not directly comparable"; 3Y/5Y not reported | Not applicable (no NAV) |
-| Management / incentive fee | Not extracted in v1 (links to the fee sentence) | same | same | same |
+| Net return 1Y / 3Y / 5Y | 1Y "Conflict: PM to choose" (11.78% performance table, 11.58% financial highlights); 3Y 10.69%, 5Y 10.98% (as of 3/31/25) | 6.27% / Not reported by fund / 8.21% | Return on average net assets 9.36% (FY to 9/30/25), "Not directly comparable"; 3Y/5Y not reported | Not applicable (no NAV) |
+| Management / incentive fee | "Not extracted in v1 · view fee terms ↗" (incentive: annual report states no incentive-fee terms) | Not extracted in v1 · view fee terms ↗ | same | same |
 | NAV per share | $10.77 (9/30/25) | $8.32 | $14.84 | Book value per share $13.04 |
 | Economic leverage (D/E) | 0.31x | 0.40x | 1.25x | 4.00x |
-| Regulatory leverage (asset coverage) | 421.1% (computed; fund reports per facility) | 352.0% | 178.94% | Not applicable: not a 1940 Act fund |
+| Regulatory leverage (asset coverage) | Not reported by fund (note: computed 421.1%, computed, low confidence) | 352.0% | 178.94% | Not applicable: not a 1940 Act fund |
 | Distribution yield (TTM ÷ NAV) | 10.58% | 9.01% | 10.51% | 7.67% (on book value) |
 
 Gaps are labeled with the reason (for example "Not reported by fund"), never blank, and every cell links to its filing. `context/build_log.md` has the hand-check link for each value; `docs/CODE_TOUR.md` traces each one through the code.
@@ -36,7 +36,7 @@ Tests: `uv run pytest` (offline; uses small excerpts of real filings in `tests/f
 ## The analyst's workflow
 
 1. Open the app.
-2. Pick the quarter-end (default Dec 31, 2025) and press **Run**.
+2. The page opens on Q4 2025 (Dec 31, 2025), the default as-of. Pick another quarter-end to see its latest run, or press **Run** to build or refresh it.
 3. **Table:** scan the dots (green High, amber Medium, red Low). Click any value to see the filing, accession number, section, the exact source text, and the check that was run.
 4. **Exceptions:** read every line. These are lags, filing conflicts, data-quality problems, client-data questions and peer-set questions. Nothing is resolved silently.
 5. **Export to Excel:** the deck-layout table plus Provenance (one row per value), Exceptions and NAV Trend sheets, protected against accidental edits.

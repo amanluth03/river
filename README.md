@@ -2,11 +2,11 @@
 
 Pulls competitor filings from SEC EDGAR, extracts benchmark metrics, checks every number against the filing it came from, and shows the comparison with Apex Ridge's own data on one review page, with Excel and Word exports.
 
-**Rule one: a gap beats a wrong number.** A value appears only if its source text was found verbatim in the cached filing and the number was read back out of that text. A computed value (leverage, distribution yield) appears only if every input passed that check. Otherwise the cell says what is missing and why.
+**The most important rule:** a value appears only if its source text was found verbatim in the cached filing and the number was read back out of that text. A computed value (leverage, distribution yield) appears only if every input passed that check. Otherwise the cell says what is missing and why.
 
-**[Validation strategy](docs/technical_approach.md#validation-strategy):** how each number is checked, reconciled and scored. Full validation tables, cell by cell: [docs/validation_appendix.md](docs/validation_appendix.md).
+**[Validation strategy](technical_approach.md#validation-strategy):** how each number is checked, reconciled and scored. Full validation tables, cell by cell: [validation_appendix.md](validation_appendix.md).
 
-## Status (after Window 3)
+## Status
 
 All nine deck rows are filled for every fund, from the filings, as of Dec 31, 2025:
 
@@ -19,7 +19,7 @@ All nine deck rows are filled for every fund, from the filings, as of Dec 31, 20
 | Regulatory leverage (asset coverage) | Not reported by fund (note: 421.1% (computed, low confidence)) | 352.0% | 178.94% | Not applicable: not a 1940 Act fund |
 | Distribution yield (TTM ÷ NAV) | 10.58% | 9.01% | 10.51% | 7.67% (on book value) |
 
-Gaps are labeled with the reason (for example "Not reported by fund"), never blank, and every cell links to its filing. `context/build_log.md` has the hand-check link for each value; `docs/CODE_TOUR.md` traces each one through the code.
+Gaps are labeled with the reason (for example "Not reported by fund"), never blank, and every cell links to its filing. [validation_appendix.md](validation_appendix.md) lists every value with its source, checks and confidence. The technical approach is in [technical_approach.md](technical_approach.md) and the business summary in [solution_brief.md](solution_brief.md).
 
 ## Run it
 
@@ -27,19 +27,21 @@ You need [uv](https://docs.astral.sh/uv/) (one-line install: `curl -LsSf https:/
 
 ```bash
 git clone https://github.com/amanluth03/river.git && cd river
-cp .env.example .env        # then set SEC_USER_AGENT to your name and email (the SEC requires it)
-uv run benchmark            # opens http://127.0.0.1:8000
+./run.sh                    # installs uv if needed, sets up .env, opens http://127.0.0.1:8000
+./run.sh test               # runs the tests (offline)
 ```
 
-The command opens your browser at the page; port 8000 must be free. On a fresh clone the page says "No run yet": press **Run** once (Q4 2025 is selected). The first run downloads about 400 MB of filings into `data/cache/` (under a minute on a fast connection). Later runs read the cache and take seconds. Stop the server with Ctrl+C.
+`run.sh` installs [uv](https://docs.astral.sh/uv/) if it is missing, creates `.env` from `.env.example`, asks for your name and email for the SEC User-Agent if none is set (the SEC requires one), checks that port 8000 is free, and starts the page. To do the same by hand: `cp .env.example .env`, set `SEC_USER_AGENT`, then `uv run benchmark`.
+
+`./run.sh` opens your browser at the page; port 8000 must be free. On a fresh clone the page says "No run yet": press **Run** once (Q4 2025 is selected). The first run downloads about 400 MB of filings into `data/cache/` (under a minute on a fast connection). Later runs read the cache and take seconds. Stop the server with Ctrl+C.
 
 No API key is needed: nothing in v1 calls a language model.
 
-Tests: `uv run pytest` (offline; uses small excerpts of real filings in `tests/fixtures/`).
+Tests: `./run.sh test` (or `uv run pytest`), offline, on small excerpts of real filings in `tests/fixtures/`.
 
 ## The analyst's workflow
 
-1. Open the app.
+1. Run `./run.sh` (or, if it is already running, open http://127.0.0.1:8000).
 2. The page opens on Q4 2025 (Dec 31, 2025), the default as-of. Pick another quarter-end to see its latest run, or press **Run** to build or refresh it.
 3. **Table:** scan the dots (green High, amber Medium, red Low). Click any value to see the filing, accession number, section, the exact source text, and the check that was run.
 4. **Exceptions:** read every line. These are lags, filing conflicts, data-quality problems, client-data questions and peer-set questions. Nothing is resolved silently.
@@ -83,14 +85,14 @@ benchmark/
   export_excel.py  Excel workbook
   export_word.py   Word report (same run data and cell text as the Excel)
   app.py, static/  the review page
-context/           build log, decision log, client notes
-docs/              CODE_TOUR.md (pipeline map, value paths, constants, failure modes)
+run.sh             one command: set up and start the page (`./run.sh test` runs the tests)
+technical_approach.md, validation_appendix.md, solution_brief.md   the written deliverables
 tests/             offline tests on fixtures cut from the real filings (tests/cut_fixtures.py)
 ```
 
 ## Known limitations (v1)
 
-- Fee terms are not extracted; the cell links to the sentence that states them (decision 45).
+- Fee terms are not extracted; the cell links to the sentence that states them.
 - HTML filings have no fixed page numbers. Every cell's link (UI, Excel and Word) lands on its source text: the row label or quote start when it is unique in the filing, else the nearest unique text above the cited row, with a find hint ("search “Net asset value, end of period”: match 2 of 7", counted ignoring case like a browser's find). One citation (KREF "Cash and cash equivalents", an input to KREF's leverage check) has no unique text nearby and opens the filing with its hint. Text-fragment links need a current browser and a click.
 - Table parsing is tuned to these four funds' layouts and row labels (all in `config.py`). When a layout or label changes, the value shows as missing, never mis-mapped.
 - Only filings whose period falls in the 8-quarter window are read.

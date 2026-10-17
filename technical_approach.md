@@ -1,6 +1,6 @@
 # Technical approach: Apex Ridge peer benchmarking
 
-*For Apex Ridge's technical counterpart. Prepared by River Technologies. Figures are from the run as of December 31, 2025. Appendices A to D, with the full validation tables, are in [docs/validation_appendix.md](validation_appendix.md).*
+*For Apex Ridge's technical counterpart. Prepared by River Technologies. Figures are from the run as of December 31, 2025. Appendices A to D, with the full validation tables, are in [validation_appendix.md](validation_appendix.md).*
 
 ## Architecture and data flow
 
@@ -69,7 +69,7 @@ Low values are always listed in Exceptions. Custom metrics are capped at Medium:
 - **The client's terms, confirmed by the client:** a common quarter-end with lags shown, NAV basis, Class I, two leverage rows, and trailing-12-month yield.
 - **Reported over computed.** Returns are shown as reported, with their lag, never chained or compounded; no return is annualized or converted from gross to net.
 
-The full log, with owners, alternatives and costs, is in `context/decisions.md`.
+The full log, with owners, alternatives and costs, is kept in the project's decision log (available on request).
 
 ## Known limitations
 
@@ -86,7 +86,7 @@ The full log, with owners, alternatives and costs, is in `context/decisions.md`.
 - **Anything that looks like IT work:** the analyst opens the page and clicks. River starts it during the pilot, and production access (a link or one-click launcher) is decided with Apex Ridge's operations lead.
 - **A fund rewords a table:** the value becomes a labeled gap that Exceptions names, fixed with one `config.py` entry and a test extract.
 - **EDGAR outage or rate limit:** only that fund's column is affected, and cached reruns work offline.
-- **Key-person dependence:** every constant in `config.py` is sourced; `docs/CODE_TOUR.md`, the decision log and the tests cover the rest.
+- **Key-person dependence:** every constant in `config.py` is sourced; a code tour, the decision log and the tests cover the rest.
 
 ## Scope change and rollout
 

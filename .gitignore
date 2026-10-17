@@ -10,3 +10,6 @@ runs/
 docs/superpowers/
 .playwright-mcp/
 exports/
+context/
+docs/
+CLAUDE.md

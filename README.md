@@ -26,7 +26,7 @@ Gaps are labeled with the reason (for example "Not reported by fund"), never bla
 You need [uv](https://docs.astral.sh/uv/) (one-line install: `curl -LsSf https://astral.sh/uv/install.sh | sh`). It installs the right Python and all dependencies on its own.
 
 ```bash
-git clone https://github.com/amanluth03/rivertakehome.git && cd rivertakehome
+git clone https://github.com/amanluth03/river.git && cd river
 cp .env.example .env        # then set SEC_USER_AGENT to your name and email (the SEC requires it)
 uv run benchmark            # opens http://127.0.0.1:8000
 ```

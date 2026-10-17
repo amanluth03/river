@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel
 
-from . import config, export_excel, pipeline
+from . import config, export_excel, export_word, pipeline
 
 STATIC = Path(__file__).parent / "static"
 RUNS_DIR = config.RUNS_DIR
@@ -93,16 +93,26 @@ def status():
     return {"running": RUNNER.running, "message": RUNNER.message, "error": RUNNER.error}
 
 
-@app.get("/api/export.xlsx")
-def export(as_of: date | None = None):
-    """The workbook for the run on screen. A copy is also saved in exports/ so the analyst can always find it."""
+EXPORT_FORMATS = {
+    "xlsx": (export_excel.write, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    "docx": (export_word.write, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+}
+
+
+@app.get("/api/export.{fmt}")
+def export(fmt: str, as_of: date | None = None):
+    """Excel or Word file for the run on screen, both built from the same run bundle.
+    A copy is also saved in exports/ so the analyst can always find it."""
+    if fmt not in EXPORT_FORMATS:
+        raise HTTPException(404, "Unknown export format.")
     latest = pipeline.latest_bundle(RUNS_DIR, as_of)
     if latest is None:
         raise HTTPException(404, "Run the benchmark first.")
+    write, media_type = EXPORT_FORMATS[fmt]
     EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    out = EXPORTS_DIR / f"peer_benchmark_{latest.as_of}_{latest.created_at:%Y%m%d-%H%M%S}.xlsx"
-    export_excel.write(latest, out)
-    return Response(out.read_bytes(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    out = EXPORTS_DIR / f"peer_benchmark_{latest.as_of}_{latest.created_at:%Y%m%d-%H%M%S}.{fmt}"
+    write(latest, out)
+    return Response(out.read_bytes(), media_type=media_type,
                     headers={"Content-Disposition": f'attachment; filename="{out.name}"', "X-Saved-Path": str(out)})
 
 

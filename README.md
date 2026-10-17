@@ -39,7 +39,10 @@ Tests: `uv run pytest` (offline; uses small excerpts of real filings in `tests/f
 2. Pick the quarter-end (default Dec 31, 2025) and press **Run**.
 3. **Table:** scan the dots (green High, amber Medium, red Low). Click any value to see the filing, accession number, section, the exact source text, and the check that was run.
 4. **Exceptions:** read every line. These are lags, filing conflicts, data-quality problems, client-data questions and peer-set questions. Nothing is resolved silently.
-5. **Export to Excel:** the deck-layout table plus Provenance (one row per value), Exceptions and NAV Trend sheets.
+5. **Export to Excel:** the deck-layout table plus Provenance (one row per value), Exceptions and NAV Trend sheets, protected against accidental edits.
+6. **Export to Word:** the same table (same cell text, same run), footnotes, exceptions and a provenance appendix, every cell linked to its filing. Labeled as a generated report with the run time and code version.
+
+Every export is also saved in `exports/` and the page shows the path.
 
 ## How a number earns its place
 
@@ -74,6 +77,7 @@ benchmark/
   apex.py          client CSV loader + checks
   pipeline.py      one run, end to end
   export_excel.py  Excel workbook
+  export_word.py   Word report (same run data and cell text as the Excel)
   app.py, static/  the review page
 context/           build log, decision log, client notes
 docs/              CODE_TOUR.md (pipeline map, value paths, constants, failure modes)

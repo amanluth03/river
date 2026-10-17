@@ -65,3 +65,18 @@ def test_bundle_and_export_by_quarter(tmp_path, monkeypatch):
     assert resp.status_code == 200 and resp.content[:2] == b"PK"  # a real .xlsx (zip) file
     assert (tmp_path / "exports").exists() and saved.endswith(".xlsx")
     assert open(saved, "rb").read() == resp.content
+
+
+def test_word_export_route(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from benchmark import app as app_module
+    from tests.test_pipeline import make_bundle
+
+    make_bundle(tmp_path)
+    monkeypatch.setattr(app_module, "RUNS_DIR", tmp_path / "runs")
+    monkeypatch.setattr(app_module, "EXPORTS_DIR", tmp_path / "exports")
+    client = TestClient(app_module.app, base_url="http://127.0.0.1")
+    resp = client.get("/api/export.docx?as_of=2025-12-31")
+    assert resp.status_code == 200 and resp.content[:2] == b"PK"
+    assert resp.headers["X-Saved-Path"].endswith(".docx")
+    assert client.get("/api/export.pdf").status_code == 404

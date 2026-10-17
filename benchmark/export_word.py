@@ -1,0 +1,138 @@
+"""Word export: the deck table, footnotes, exceptions and a provenance appendix.
+
+Built from the same run bundle as the Excel export, and every table cell uses export_excel.cell_text,
+so the Word and Excel files can never show different numbers. Word can't be locked like the Excel
+sheets, so the document says it is generated and prints the run time and code version: any edit can be
+checked against the run it came from.
+"""
+from pathlib import Path
+
+from docx import Document
+from docx.enum.section import WD_ORIENT
+from docx.opc.constants import RELATIONSHIP_TYPE
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Pt, RGBColor
+
+from .export_excel import cell_text
+from .records import RunBundle, ValueRecord
+
+LINK_COLOR = "1F4E79"
+
+
+def _hyperlink(paragraph, url: str, text: str):
+    """Add `text` as a clickable link to `url` (python-docx has no high-level call for this)."""
+    rel_id = paragraph.part.relate_to(url, RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+    link = OxmlElement("w:hyperlink")
+    link.set(qn("r:id"), rel_id)
+    run = OxmlElement("w:r")
+    props = OxmlElement("w:rPr")
+    color, underline = OxmlElement("w:color"), OxmlElement("w:u")
+    color.set(qn("w:val"), LINK_COLOR)
+    underline.set(qn("w:val"), "single")
+    props.append(color)
+    props.append(underline)
+    run.append(props)
+    text_el = OxmlElement("w:t")
+    text_el.text = text
+    text_el.set(qn("xml:space"), "preserve")
+    run.append(text_el)
+    link.append(run)
+    paragraph._p.append(link)
+
+
+def _fill(cell, rec: ValueRecord):
+    """A table cell: the same text as the Excel cell, linked to its filing when it has one."""
+    text = cell_text(rec)
+    paragraph = cell.paragraphs[0]
+    if rec.citation and rec.citation.url.startswith("http"):
+        _hyperlink(paragraph, rec.citation.url, text)
+    else:
+        paragraph.add_run(text)
+
+
+def _small(table, size=8):
+    for row in table.rows:
+        for cell in row.cells:
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    run.font.size = Pt(size)
+
+
+def _header_row(table, names):
+    for cell, name in zip(table.rows[0].cells, names):
+        cell.text = name
+        cell.paragraphs[0].runs[0].bold = True
+
+
+def _benchmark(doc, bundle: RunBundle):
+    doc.add_heading("Benchmark", level=1)
+    table = doc.add_table(rows=1, cols=1 + len(bundle.funds))
+    table.style = "Table Grid"
+    _header_row(table, ["Metric"] + bundle.funds)
+    for metric, label in bundle.rows:
+        cells = table.add_row().cells
+        cells[0].text = label
+        for cell, fund in zip(cells[1:], bundle.funds):
+            _fill(cell, bundle.table[metric][fund])
+    _small(table)
+    doc.add_paragraph("Click a value to open its filing. [H]/[M]/[L] = confidence.").runs[0].font.size = Pt(8)
+    for i, note in enumerate(bundle.footnotes, start=1):
+        doc.add_paragraph(f"{i}. {note}").runs[0].font.size = Pt(8)
+
+
+def _exceptions(doc, bundle: RunBundle):
+    doc.add_heading("Exceptions for review", level=1)
+    table = doc.add_table(rows=1, cols=4)
+    table.style = "Table Grid"
+    _header_row(table, ["Type", "Fund", "Metric", "Message"])
+    for issue in bundle.issues:
+        cells = table.add_row().cells
+        for cell, value in zip(cells, [issue.kind, issue.fund, issue.metric or "", issue.message]):
+            cell.text = value
+    _small(table)
+
+
+def _provenance(doc, bundle: RunBundle):
+    doc.add_heading("Provenance", level=1)
+    doc.add_paragraph("One row per competitor cell: the filing, where in it, and the source text. Computed values "
+                      "list each input with its own filing.").runs[0].font.size = Pt(8)
+    table = doc.add_table(rows=1, cols=5)
+    table.style = "Table Grid"
+    _header_row(table, ["Fund / metric", "Value", "Filing", "Section", "Source text or inputs"])
+    for metric, label in bundle.rows:
+        for fund in bundle.funds[1:]:
+            rec = bundle.table[metric][fund]
+            cit = rec.citation
+            cells = table.add_row().cells
+            cells[0].text = f"{fund} · {label}"
+            cells[1].text = rec.display() if rec.value is not None else rec.gap
+            if cit:
+                _hyperlink(cells[2].paragraphs[0], cit.url, f"{cit.form} {cit.accession}")
+                cells[3].text = cit.section
+            if rec.inputs:
+                cells[4].text = " | ".join(f"{x.value} = {x.citation.row_label} ({x.citation.form} "
+                                           f"{x.citation.accession})" for x in rec.inputs)
+            elif cit:
+                cells[4].text = cit.quote or rec.reason
+            else:
+                cells[4].text = rec.reason
+    _small(table, 7)
+
+
+def write(bundle: RunBundle, path: Path) -> Path:
+    doc = Document()
+    section = doc.sections[0]
+    section.orientation = WD_ORIENT.LANDSCAPE
+    section.page_width, section.page_height = section.page_height, section.page_width
+    doc.add_heading("Peer benchmark", level=0)
+    meta = doc.add_paragraph(
+        f"As of {bundle.as_of}. Generated report: run {bundle.created_at:%Y-%m-%d %H:%M}, code version "
+        f"{bundle.code_version}. Do not edit figures here; re-run the tool and export again.")
+    meta.runs[0].font.size = Pt(9)
+    meta.runs[0].font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+    _benchmark(doc, bundle)
+    _exceptions(doc, bundle)
+    _provenance(doc, bundle)
+    doc.save(path)
+    return Path(path)

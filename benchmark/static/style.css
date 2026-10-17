@@ -102,3 +102,10 @@ button:disabled { opacity: .5; cursor: default; }
 body.panel-open { padding-right: min(552px, 100vw); }
 .panel { padding-bottom: 48px; }
 .table-scroll { overflow-x: auto; }
+
+/* Client, W3: flags a reviewer must see are styled in the cell itself. */
+.bench .amended { display: block; margin-bottom: 4px; padding: 2px 6px; border-radius: 4px; background: #f8d7d3;
+  color: #9b2c1f; font-weight: 600; font-size: 11px; }
+.bench td.conflict-cell { background: #fcefd2; }
+.bench .conflict { display: block; color: #9b2c1f; font-weight: 600; font-size: 12px; }
+.bench .cand { display: block; font-size: 12px; }

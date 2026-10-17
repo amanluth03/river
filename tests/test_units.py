@@ -124,3 +124,19 @@ def test_leverage_that_disagrees_with_reported_coverage_is_low(tmp_path):
     assert econ.value == Decimal("0.40") and econ.confidence == "low" and "check_failed" in econ.flags
     assert "DISAGREE" in econ.check
     assert out["leverage_regulatory"].confidence == "low"  # the narrative figure is not confirmed either
+
+
+def test_amendment_flag_reaches_conflict_cells_and_notes():
+    """Reviewer finding: a conflict cell (no value) and a 'Not reported' cell whose note is computed from
+    filings must still be flagged when one of those filings is amended."""
+    subs = json.loads((FX / "submissions_cclfx.json").read_text())
+    rec = _record_citing("0001213900-23-094373", "N-CSRS", date(2023, 9, 30), date(2023, 12, 7))
+    conflict = ValueRecord(fund="CCLFX", metric="net_return_1y", value=None, unit="pct", status="conflict",
+                           reason="Conflict: PM to choose", period_end=date(2023, 9, 30),
+                           citation=rec.citation.model_copy(update={"quote": ""}), candidates=rec.candidates)
+    note_only = ValueRecord(fund="CCLFX", metric="leverage_regulatory", value=None, unit="pct",
+                            status="not_reported", reason="Not reported by fund", inputs=rec.candidates)
+    issues = []
+    amendments.flag(subs, CCLFX, [conflict, note_only], issues)
+    assert "Superseded by amendment: re-check" in conflict.flags
+    assert "Superseded by amendment: re-check" in note_only.flags

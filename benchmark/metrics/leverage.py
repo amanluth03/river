@@ -17,7 +17,7 @@ from datetime import date
 from decimal import Decimal
 
 from .. import textnorm
-from ..config import (COVERAGE_CONCEPT, COVERAGE_MINIMUM, KREF_DEBT_TO_EQUITY, KREF_NOT_1940_ACT,
+from ..config import (COMPUTED_LOW_NOTE, COVERAGE_CONCEPT, COVERAGE_MINIMUM, NOT_REPORTED_BY_FUND, KREF_DEBT_TO_EQUITY, KREF_NOT_1940_ACT,
                       KREF_TOTAL_LEVERAGE, LEVERAGE_ROWS, LEVERAGE_TOLERANCE, TAKIX_COVERAGE_SENTENCE)
 from ..conflicts import resolve
 from ..extract import tables
@@ -153,16 +153,16 @@ def records(data: FundData) -> dict[str, ValueRecord]:
     elif fund.kind == "bdc":
         out[REG] = _gbdc_coverage(data, filing, period) or missing(
             fund.ticker, REG, "not_found", f"Tagged asset coverage row not found in {filing.form} {filing.accession}.", period)
-    elif sheet is not None:  # CCLFX: computed from the balance sheet (decision 36)
+    elif sheet is not None:  # CCLFX reports coverage per facility only (decision 36, revised by client W3: 57)
         coverage = ((equity.value + total_debt) / total_debt * 100).quantize(Decimal("0.1"))
-        out[REG] = computed(fund.ticker, REG, coverage, "pct", period, [equity] + debts,
-                            f"Asset coverage = (net assets {equity.value:,} + debt {total_debt:,}) / debt "
-                            f"{total_debt:,} = {coverage}%",
-                            basis_assumption=("the fund reports asset coverage per facility only; this fund-level "
-                                              "figure uses balance-sheet carrying values, not principal"),
-                            note="Computed")
-        out[REG].normalizations.append(f"The fund reports asset coverage per facility only. 1940 Act minimum "
-                                       f"{COVERAGE_MINIMUM['interval']}.")
+        out[REG] = missing(fund.ticker, REG, "not_reported",
+                           f"{NOT_REPORTED_BY_FUND}: the fund reports asset coverage per facility only, not for the "
+                           f"fund as a whole.", period, citation=equity.citation,
+                           note=f"Computed {coverage}% ({COMPUTED_LOW_NOTE})")
+        out[REG].inputs = [equity] + debts
+        out[REG].normalizations = [
+            f"Asset coverage = (net assets {equity.value:,} + debt {total_debt:,}) / debt {total_debt:,} = {coverage}%. "
+            f"Uses balance-sheet carrying values, not principal. 1940 Act minimum {COVERAGE_MINIMUM['interval']}."]
     else:
         out[REG] = missing(fund.ticker, REG, "not_found", reason, period)
 

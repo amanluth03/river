@@ -1,0 +1,46 @@
+[
+  {
+    "key": "portfolio_turnover",
+    "name": "Portfolio turnover rate",
+    "definition": "How much of the fund's portfolio was bought and sold during the period, as the fund reports it in its financial highlights. A higher rate means the portfolio changed more over the period.",
+    "unit": "pct",
+    "source_shape": "table_row",
+    "shape": {
+      "row_label_pattern": "^Portfolio turnover( rate)?\\*?$",
+      "section": "Financial Highlights (Class I table for the interval funds)"
+    },
+    "normalization_assumptions": [
+      "Use the figure as reported; do not convert it. Show the fund's own annualized / not annualized footnote next to the value.",
+      "CCLFX semi-annual figures are marked 'Not annualized' (footnote 5); GBDC quarterly figures are marked annualized (footnote *). These are different bases, so they must be labeled, not compared silently.",
+      "Never annualize a not-annualized figure by scaling (for example doubling a six-month rate); that is an estimate, not a sourced value.",
+      "Class I only for the interval funds."
+    ],
+    "owner": "Apex Ridge analytics team (to confirm)",
+    "sources": [
+      {
+        "cik": "0001735964",
+        "fund": "CCLFX",
+        "form": "N-CSRS",
+        "accession": "0001213900-25-118573",
+        "filing_date": "2025-12-05",
+        "period_end": "2025-09-30",
+        "document": "ea0264761-01_ncsrs.htm",
+        "section": "Consolidated Financial Highlights Class I (page 127); footnote 5 on page 128",
+        "quote": "Portfolio turnover rate 12 %5 34 % 31 % 26 % 16 %5 29 % 29 %",
+        "footnote_quote": "5 Not annualized."
+      },
+      {
+        "cik": "0001476765",
+        "fund": "GBDC",
+        "form": "10-Q",
+        "accession": "0001476765-26-000012",
+        "filing_date": "2026-02-04",
+        "period_end": "2025-12-31",
+        "document": "gbdc-20251231.htm",
+        "section": "Note 9. Financial Highlights, supplemental data and ratios",
+        "quote": "Portfolio turnover* 7.85% 21.33%",
+        "footnote_quote": "*Annualized for periods less than one year, unless otherwise noted."
+      }
+    ]
+  }
+]

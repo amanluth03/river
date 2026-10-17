@@ -23,18 +23,21 @@ def amendments_of(submissions: dict, form: str, period, filed) -> list[Filing]:
 
 
 def _citations(record: ValueRecord) -> list[Citation]:
+    """Every filing a cell depends on: its citation, the inputs of a computed value or note, and each
+    candidate of a conflict (reviewer finding: conflict cells and notes were missed)."""
     cits = [record.citation] if record.citation else []
-    return cits + [c.citation for c in record.inputs]
+    cits += [c.citation for c in record.inputs]
+    if record.status == "conflict":
+        cits += [c.citation for c in record.candidates]
+    return cits
 
 
 def cited_accessions(records: list[ValueRecord]) -> set[str]:
-    return {c.accession for r in records if r.status == "ok" for c in _citations(r)}
+    return {c.accession for r in records for c in _citations(r)}
 
 
 def flag(submissions: dict, fund: Fund, records: list[ValueRecord], issues: list[Issue]) -> None:
     for record in records:
-        if record.status != "ok":
-            continue
         for cit in _citations(record):
             if cit.cik == "client" or cit.period_end is None:
                 continue

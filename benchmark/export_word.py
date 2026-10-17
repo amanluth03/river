@@ -14,7 +14,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
 
-from .export_excel import cell_text
+from .export_excel import alert, cell_text
 from .records import RunBundle, ValueRecord
 
 LINK_COLOR = "1F4E79"
@@ -41,14 +41,36 @@ def _hyperlink(paragraph, url: str, text: str):
     paragraph._p.append(link)
 
 
+ALERT_SHADE = {"amendment": "F8D7D3", "conflict": "FCEFD2"}  # same colors as the Excel export
+
+
+def _shade(cell, hex_color: str):
+    shading = OxmlElement("w:shd")
+    shading.set(qn("w:val"), "clear")
+    shading.set(qn("w:fill"), hex_color)
+    cell._tc.get_or_add_tcPr().append(shading)
+
+
 def _fill(cell, rec: ValueRecord):
-    """A table cell: the same text as the Excel cell, linked to its filing when it has one."""
+    """A table cell: the same text as the Excel cell, linked to its filing when it has one. An amendment
+    flag or a conflict is shaded and printed in bold red in the cell itself (client, W3)."""
     text = cell_text(rec)
     paragraph = cell.paragraphs[0]
+    kind = alert(rec)
+    if kind:
+        _shade(cell, ALERT_SHADE[kind])
+        first, _, text = text.partition("\n") if kind == "amendment" else ("", "", text)
+        if first:
+            flag = paragraph.add_run(first + "\n")
+            flag.bold, flag.font.color.rgb = True, RGBColor(0x9B, 0x2C, 0x1F)
     if rec.citation and rec.citation.url.startswith("http"):
         _hyperlink(paragraph, rec.citation.url, text)
     else:
         paragraph.add_run(text)
+    if rec.citation and rec.status == "conflict":
+        for c in rec.candidates:  # each disagreeing source keeps its own link
+            _hyperlink(cell.add_paragraph(), c.citation.url,
+                       f"{c.value}%: {c.citation.section.split(':')[0]} ({c.citation.form} {c.citation.accession})")
 
 
 def _small(table, size=8):
@@ -105,7 +127,7 @@ def _provenance(doc, bundle: RunBundle):
             rec = bundle.table[metric][fund]
             cit = rec.citation
             cells = table.add_row().cells
-            cells[0].text = f"{fund} · {label}"
+            cells[0].text = f"{fund} · {rec.label or label}"  # KREF: "Book value per share", never NAV
             cells[1].text = rec.display() if rec.value is not None else rec.gap
             if cit:
                 _hyperlink(cells[2].paragraphs[0], cit.url, f"{cit.form} {cit.accession}")
@@ -127,8 +149,8 @@ def write(bundle: RunBundle, path: Path) -> Path:
     section.page_width, section.page_height = section.page_height, section.page_width
     doc.add_heading("Peer benchmark", level=0)
     meta = doc.add_paragraph(
-        f"As of {bundle.as_of}. Generated report: run {bundle.created_at:%Y-%m-%d %H:%M}, code version "
-        f"{bundle.code_version}. Do not edit figures here; re-run the tool and export again.")
+        f"As of {bundle.as_of}. Generated report: run ID {bundle.run_id} ({bundle.created_at:%Y-%m-%d %H:%M}), "
+        f"code version {bundle.code_version}. Do not edit figures here; re-run the tool and export again.")
     meta.runs[0].font.size = Pt(9)
     meta.runs[0].font.color.rgb = RGBColor(0x55, 0x55, 0x55)
     _benchmark(doc, bundle)

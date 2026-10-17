@@ -58,18 +58,27 @@ function renderTable() {
 
 function cellHtml(rec, metric, fund) {
   const cls = fund === "Apex Ridge" ? "val apex" : "val";
-  const attrs = `class="${cls}" data-metric="${metric}" data-fund="${esc(fund)}"`;
+  const extra = rec.status === "conflict" ? " conflict-cell" : "";
+  const attrs = `class="${cls}${extra}" data-metric="${metric}" data-fund="${esc(fund)}"`;
   const label = rec.label ? `<span class="label">${esc(rec.label)}</span>` : "";
+  // Client, W3: an amendment flag sits at the top of the cell itself, styled, never only in a footnote.
+  const amended = (rec.flags || []).find((f) => f.startsWith("Superseded"));
+  const amendHtml = amended ? `<span class="amended">${esc(amended)}</span>` : "";
+  if (rec.status === "conflict") {
+    const both = rec.candidates.map((c) =>
+      `<span class="cand">${esc(Number(c.value).toFixed(2))}% · ${esc(c.citation.section.split(":")[0])}</span>`).join("");
+    return `<td ${attrs} title="${esc(rec.reason)}">${amendHtml}<span class="conflict">${esc(rec.gap)}</span>${both}</td>`;
+  }
   if (rec.status !== "ok") {
-    return `<td ${attrs} title="${esc(rec.reason)}">${label}<span class="gap">${esc(rec.gap)}</span></td>`;
+    return `<td ${attrs} title="${esc(rec.reason)}">${amendHtml}${label}<span class="gap">${esc(rec.gap)}</span>${rec.note ? `<span class="note">${esc(rec.note)}</span>` : ""}</td>`;
   }
   const dot = rec.confidence ? `<span class="dot ${rec.confidence}" title="${rec.confidence} confidence"></span>` : "";
-  const flags = (rec.flags || []).filter((f) => f.startsWith("Superseded")).map((f) => `<span class="flag">${esc(f)}</span>`).join("");
+  const computedTag = rec.method === "computed" ? `<span class="note">(computed)</span>` : "";
   // A value older than the column's NAV date says so in the cell (e.g. CCLFX returns as of 3/31/25).
   const navDate = bundle.table.nav_per_share[fund]?.period_end;
   const asOf = rec.lag_quarters && rec.period_end !== navDate
     ? `<span class="flag">as of ${shortDate(rec.period_end)} · ${rec.lag_quarters}Q lag</span>` : "";
-  return `<td ${attrs}>${label}${fmt(rec)}${dot}${rec.note ? `<span class="note">${esc(rec.note)}</span>` : ""}${asOf}${flags}</td>`;
+  return `<td ${attrs}>${amendHtml}${label}${fmt(rec)}${dot}${computedTag}${rec.note ? `<span class="note">${esc(rec.note)}</span>` : ""}${asOf}</td>`;
 }
 
 // ---------- Side panel ----------
@@ -127,7 +136,12 @@ function openPanel(rec, el) {
   if (rec.resolution) h += `<h4>How we chose</h4><p class="reason">${esc(rec.resolution)}</p>`;
   const recon = rec.candidates?.find((x) => x.reconciliation && c && x.citation.accession === c.accession);
   if (recon) h += `<h4>Check</h4><p class="reason">${esc(recon.reconciliation)}</p>`;
-  if (rec.candidates?.length > 1) {
+  if (rec.status === "conflict") {
+    h += `<h4>Both sources (PM to choose; neither is selected)</h4><ol class="inputs">${rec.candidates.map((x) =>
+      `<li><b>${esc(x.value)}%</b> · ${esc(x.citation.section)}<br><a href="${esc(x.citation.url)}" target="_blank" rel="noopener">${esc(x.citation.form)} ${esc(x.citation.accession)}</a>
+       ${x.citation.find_match ? `<br><span class="muted">Search "${esc(x.citation.row_label)}": match ${x.citation.find_match} of ${x.citation.find_total}</span>` : ""}
+       <blockquote>${esc(x.citation.quote)}</blockquote></li>`).join("")}</ol>`;
+  } else if (rec.candidates?.length > 1) {
     h += `<h4>All sources seen for this period</h4><ul>${rec.candidates.map((x) =>
       `<li>${esc(x.value)} · ${esc(x.citation.form)} ${esc(x.citation.accession)} · ${x.verified ? "verified" : "not verified: " + esc(x.verify_reason)}</li>`).join("")}</ul>`;
   }

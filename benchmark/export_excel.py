@@ -9,25 +9,48 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from .config import AMENDMENT_FLAG
 from .records import RunBundle, ValueRecord
 
 BOLD = Font(bold=True)
 LINK = Font(color="1F4E79", underline="single")
 HEADER_FILL = PatternFill("solid", fgColor="E8ECF1")
 LETTER = {"high": "H", "medium": "M", "low": "L"}
+# Cells that need a reviewer's eye are styled in the cell itself (client, W3: decision 58).
+ALERT_FILL = {"amendment": PatternFill("solid", fgColor="F8D7D3"), "conflict": PatternFill("solid", fgColor="FCEFD2")}
+ALERT_FONT = Font(color="9B2C1F", bold=True)
+
+
+def alert(rec: ValueRecord) -> str | None:
+    """'amendment' if the value's filing was amended since, 'conflict' if two sources disagree, else None."""
+    if AMENDMENT_FLAG in rec.flags:
+        return "amendment"
+    if rec.status == "conflict" or "conflict" in rec.flags or "pm_review" in rec.flags:
+        return "conflict"
+    return None
+
+
 def cell_text(rec: ValueRecord) -> str:
+    """Everything the table shows for one value, as text. The UI, Excel and Word all use this content,
+    so no export is a "clean" version: amendment flags, conflicts, lags, computed notation all appear."""
+    lines = [AMENDMENT_FLAG] if AMENDMENT_FLAG in rec.flags else []
     if rec.value is None:
-        return f"{rec.gap} ({rec.label})" if rec.label else rec.gap
-    parts = [f"{rec.label}: {rec.display()}" if rec.label else rec.display()]
-    if rec.confidence:
-        parts.append(f"[{LETTER[rec.confidence]}]")
+        lines.append(f"{rec.gap} ({rec.label})" if rec.label else rec.gap)
+        if rec.status == "conflict":
+            lines += [f"{c.value}% · {c.citation.section} ({c.citation.form} {c.citation.accession})"
+                      for c in rec.candidates]
+    else:
+        head = f"{rec.label}: {rec.display()}" if rec.label else rec.display()
+        if rec.confidence:
+            head += f" [{LETTER[rec.confidence]}]"
+        if rec.method == "computed":
+            head += " (computed)"
+        lines.append(head)
     if rec.note:
-        parts.append(f"\n{rec.note}")
+        lines.append(rec.note)
     if rec.lag_quarters:
-        parts.append(f"\nas of {rec.period_end} ({rec.lag_quarters}Q lag)")
-    if any(f.startswith("Superseded") for f in rec.flags):
-        parts.append("\nSuperseded by amendment: re-check")
-    return " ".join(parts).replace(" \n", "\n")
+        lines.append(f"as of {rec.period_end} ({rec.lag_quarters}Q lag)")
+    return "\n".join(lines)
 
 
 def _header(ws, names):
@@ -44,13 +67,16 @@ def _benchmark(ws, bundle: RunBundle):
         ws.append([label] + [cell_text(row[f]) for f in bundle.funds])
         for col, fund in enumerate(bundle.funds, start=2):
             cit = row[fund].citation
+            cell = ws.cell(row=ws.max_row, column=col)
             if cit and cit.url.startswith("http"):
-                cell = ws.cell(row=ws.max_row, column=col)
                 cell.hyperlink, cell.font = cit.url, LINK
+            kind = alert(row[fund])
+            if kind:
+                cell.fill, cell.font = ALERT_FILL[kind], ALERT_FONT
     ws.append(["Data as of"] + [str(bundle.table["nav_per_share"][f].period_end or "—") for f in bundle.funds])
     ws.append([])
-    for i, note in enumerate(bundle.footnotes + [f"Run created {bundle.created_at:%Y-%m-%d %H:%M}, code version "
-                                                 f"{bundle.code_version}."], start=1):
+    for i, note in enumerate(bundle.footnotes + [f"Run ID {bundle.run_id} ({bundle.created_at:%Y-%m-%d %H:%M}), code "
+                                                 f"version {bundle.code_version}."], start=1):
         ws.append([f"{i}. {note}"])
     ws.column_dimensions["A"].width = 44
     for col in "BCDEF":

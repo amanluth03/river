@@ -26,6 +26,7 @@ COMPETITOR_CSV = STARTER / "competitor_cik_list.csv"  # client starter package
 APEX_CSV = STARTER / "apex_ridge_fund_data.csv"  # client starter package
 CACHE_DIR = ROOT / "data" / "cache"
 RUNS_DIR = ROOT / "runs"
+RUN_ID_FORMAT = "%Y%m%d-%H%M%S-%f"  # run folder name = run ID, stamped on exports (client W3: decision 65)
 EXPORTS_DIR = ROOT / "exports"  # every Excel export is also saved here (gitignored)
 
 # Apex Ridge's latest quarter in the client CSV (Q4 2025); confirmed as the as-of reading in W2 (decision 9).
@@ -96,12 +97,17 @@ NOT_IN_CLIENT_DATA = "Not in client data"  # W2: '"Not in client data" for our r
 KREF_NOT_1940_ACT = "Not applicable: KREF is not a 1940 Act fund"  # W2 draft approved by Dana (decision 10)
 FEES_NOT_EXTRACTED = "Not extracted in v1"  # W2: '"Not extracted in v1" with a direct link' (decision 20)
 FEES_IN_NARRATIVE = "Fee terms are in the prospectus narrative"  # W2 fallback wording (decision 20)
+# Window 3 (client, decision 56): when two reported figures disagree inside one filing, show both, choose neither.
+CONFLICT_PM_CHOOSE = "Conflict: PM to choose"
+# Window 3 (client, decision 57): CCLFX reports asset coverage per facility only; the computed fund-level
+# figure moves to a note with this label, and the cell says NOT_REPORTED_BY_FUND.
+COMPUTED_LOW_NOTE = "computed, low confidence"
 # What a missing cell shows: the first of these its reason starts with, else the status label below.
-GAP_LABELS = [NOT_REPORTED_BY_FUND, FEES_NOT_EXTRACTED, NOT_IN_CLIENT_DATA, KREF_NOT_1940_ACT, "Not applicable"]
+GAP_LABELS = [CONFLICT_PM_CHOOSE, NOT_REPORTED_BY_FUND, FEES_NOT_EXTRACTED, NOT_IN_CLIENT_DATA, KREF_NOT_1940_ACT, "Not applicable"]
 STATUS_LABELS = {"not_found": "Not found in the filings read", "not_verified": "Not verified against the filing",
                  "fetch_failed": "EDGAR fetch failed", "excluded_by_rule": "Excluded by rule",
                  "not_reported": NOT_REPORTED_BY_FUND, "not_applicable": "Not applicable",
-                 "not_extracted": FEES_NOT_EXTRACTED}
+                 "not_extracted": FEES_NOT_EXTRACTED, "conflict": CONFLICT_PM_CHOOSE}
 AMENDMENT_FLAG = "Superseded by amendment: re-check"  # CLAUDE.md item 20 (Dana's W2 request, decision 19)
 
 # Apex 1Y gap note: framed exactly as drafted in W2 and approved by Dana ("Note the gap and the likely
@@ -118,8 +124,8 @@ FOOTNOTES = [
     "As-of date {as_of}: each fund's latest report for a period ending on or before it; lags are shown in the "
     "cell (decisions 4, 9).",
     "Competitor figures from SEC EDGAR filings, each verified against the source text before display. Every cell "
-    "links to its filing; the Provenance sheet has form, accession, section, source quote and every input of a "
-    "computed value (decision 7).",
+    "links to its filing; the Provenance section has form, accession, section, source quote and every input of "
+    "a computed value (decision 7).",
     "[H]/[M]/[L] = confidence. Low values are listed under Exceptions for review.",
     "CCLFX and TAKIX: Class I. Returns and distribution yields on NAV basis (decisions 2, 3).",
     "Economic leverage = total debt (incl. mandatory redeemable preferred) / net assets. Regulatory leverage = "
@@ -307,3 +313,23 @@ def window_quarters(as_of: date, count: int = WINDOW_QUARTERS) -> list[date]:
 def quarters_between(earlier: date, later: date) -> int:
     """Whole quarters from `earlier` to `later` (used to show data lag)."""
     return ((later.year - earlier.year) * 12 + (later.month - earlier.month)) // 3
+
+
+# ---------------------------------------------------------------- fee link landing (Window 3 fix)
+# FEE-LINK CONSTANTS: owned by the fee-link task; add new fee-link constants below this line only.
+# Client, W3: a fee link must land "on or right next to the fee sentence (at most two scrolls away)".
+# First choice is a URL text fragment (#:~:text=..., the W3C/WICG "Text Fragments" spec; Chrome/Edge 81+,
+# Safari 16.1+, Firefox 131+). Browsers match it case-insensitively and jump to the FIRST match, so it is
+# only used when the words occur once in the document (decision 34: a repeated label landed on Class A).
+# The fragment grows one word at a time from the FEE_SECTION phrase until unique, up to this many words
+# (the fee sentence itself is rarely longer; past that we are no longer pointing at one sentence).
+FEE_FRAGMENT_MAX_EXTRA_WORDS = 40
+# Characters our text normalizer may have produced from a different page character (textnorm._CHAR_MAP:
+# curly quotes and dashes become ' " -). A fragment containing one might not match the page, so it never
+# grows past a word that holds one.
+FEE_FRAGMENT_UNSAFE_CHARS = "'\"-"
+# Fallback: the nearest HTML element id before the sentence (#id), if it is at most this many characters
+# of document text before it. "Two scrolls" ~ two screens; a screen of an EDGAR filing on a laptop shows
+# roughly 2,000 characters when tables or spacing are present (dense prose shows more), so 4,000 is the
+# conservative end. Beyond that the link stays the plain document URL and the record says so.
+FEE_ANCHOR_MAX_CHARS = 4000

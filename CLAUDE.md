@@ -2,7 +2,7 @@
 
 Context for Claude Code. Read this whole file before writing anything.
 
-Source material lives in `context/`: `handoff_notes.md` (the original brief), `window1_transcript.md` and `window2_transcript.md` (the full client conversations). This file is the summary and wins where they differ. Consult the sources when you need the client's exact words, for example when writing the docs.
+Source material lives in `context/`: `handoff_notes.md` (the original brief), `window1_transcript.md`, `window2_transcript.md` and `window3_transcript.md` (the full client conversations). This file is the summary and wins where they differ. Consult the sources when you need the client's exact words, for example when writing the docs.
 
 ## First principles (the tie-breaker for every decision)
 
@@ -85,7 +85,27 @@ Also requirements. Where these differ from anything above, these win.
 23. **Fees fallback:** if fee terms can't be verified, show **"Not extracted in v1"** with a link that lands **as close to the fee section as possible** (the page or section of the prospectus, such as the fee table or "Management Fee" section). If no section can be located, the link plus a note "Fee terms are in the prospectus narrative" is acceptable. A bare link to a whole filing is not.
 24. **Window 3 = review of the real numbers:** the full table with leverage populated, the gap note, and how it all holds together.
 
-## Build order after Window 2 (time is tight)
+## Scope change and Window 3 (final; these win over anything above)
+
+The client sent a change request: custom metrics, a searchable EDGAR fund browser, and Word output. In Window 3 Dana approved this scoping and its constraints:
+
+25. **Word document ships fully** (her top priority: the IC asked for it by name). It must carry **every** conflict flag, lag label, computed notation and citation the table has. "The IC sees what the PM sees." Built from the same run as the Excel, stamped with the run ID and code version.
+26. **Fund browser:** design only for this delivery, described in the docs as next phase: search EDGAR by name, ticker or CIK; "add" works only for fund types we already parse (interval funds, BDCs, mortgage REITs); other types show "Not yet supported", never empty columns.
+27. **Custom metrics:** a definitions file where each metric is a table row, an XBRL tag or a ratio of existing metrics, with the same verification and citations, starting at Medium confidence at most. **Every definition must state what it measures, its unit, its source and its normalization assumptions (plus owner); saving fails if any is missing.** "A metric with no definition is the same problem as a number with no citation." Build it with one example (portfolio turnover) only if time allows before 10:45 PM; otherwise describe it in the technical approach doc as next phase.
+28. **Cliffwater 1Y conflict:** don't choose. Show 11.78% (performance table) and 11.58% (financial highlights), both sources, flagged "Conflict: PM to choose." Nothing selected.
+29. **Cliffwater regulatory leverage:** main cell "Not reported by fund"; the computed 421% goes in a note labeled computed, low confidence. Derived numbers never sit in a main cell.
+30. **Fee links** to the annual report or 10-K are acceptable if they land on or right next to the fee sentence (at most two scrolls). Never page one.
+31. **Amendments:** flag-only is right for v1. "Superseded by amendment: re-check" must be **in the cell**, visibly styled, in the UI, the Excel and the Word export, and also in exceptions.
+
+### For the two documents (from Window 3)
+
+- **What the CIO judges it on:** not time saved ("table stakes"), but whether he can stand behind every number in front of the board, can point at the page for each figure, and sees that the output **caught things an analyst would have missed**. Lead the brief with accuracy and the catches: KREF isn't a BDC; Golub's "NAV return" is a different measure; Cliffwater's report contradicts itself on its 1Y return; Cliffwater does report a 3Y return; Apex's own 1Y vs compounded quarters gap; amendment detection. "Speed is expected. Accuracy he will remember."
+- **Dana's premortem (the two ways this fails):** (1) a citation breaks, a PM can't find a number, and trust is gone; (2) any step that looks like IT work means it goes unused. Answer both: re-verify every citation on every run and test that links land; no terminal or config for analysts.
+- **Production rollout:** hosting is unresolved. It goes to Apex Ridge's operations lead, who handles vendor tool approvals with compliance and IT; Dana will make the introduction. The constraint is fixed: the analyst opens something and clicks, nothing more.
+- **Deferred items are acceptable:** Dana said missing metrics, imperfect normalization and features not in v1 are things she can work around. Broken trust and unusable tools are not.
+- **Own the miss:** the system initially chose Cliffwater's 1Y for the PM, which broke the Window 1 rule. Now it refuses to choose when a single report contradicts itself.
+
+## Build order after Window 2 (superseded by the scope change above; kept for history)
 
 1. Leverage (two rows)
 2. Distribution yield (TTM ÷ period-end NAV)

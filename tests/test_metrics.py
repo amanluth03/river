@@ -44,8 +44,9 @@ def test_regulatory_leverage(bundle):
     assert "704.8%" in " ".join(takix.normalizations) and "Implies D/E 0.40x" in takix.note
     gbdc = cell(bundle, "leverage_regulatory", "GBDC")
     assert gbdc.value == Decimal("178.94") and gbdc.method == "ixbrl" and "150%" in " ".join(gbdc.normalizations)
-    cclfx = cell(bundle, "leverage_regulatory", "CCLFX")
-    assert cclfx.value == Decimal("421.1") and cclfx.method == "computed" and cclfx.confidence == "low"
+    cclfx = cell(bundle, "leverage_regulatory", "CCLFX")  # client, W3: not reported; computed figure in a note
+    assert cclfx.value is None and cclfx.gap == "Not reported by fund"
+    assert "421.1%" in cclfx.note and "computed, low confidence" in cclfx.note and cclfx.inputs
     kref = cell(bundle, "leverage_regulatory", "KREF")
     assert kref.status == "not_applicable" and kref.gap == "Not applicable: KREF is not a 1940 Act fund"
     assert "3.9x" in kref.note and kref.citation is not None
@@ -76,10 +77,7 @@ def test_interval_fund_returns(bundle):
     assert takix["net_return_1y"].value == Decimal("6.27") and takix["net_return_1y"].confidence == "high"
     assert takix["net_return_3y"].gap == "Not reported by fund" and takix["net_return_3y"].citation is not None
     assert takix["net_return_5y"].value == Decimal("8.21")
-    cclfx_1y = cell(bundle, "net_return_1y", "CCLFX")
-    # The performance table says 11.78%; the same year's Financial Highlights say 11.58%. Shown, flagged Low.
-    assert cclfx_1y.value == Decimal("11.78") and cclfx_1y.confidence == "low" and "11.58" in cclfx_1y.confidence_reason
-    assert cclfx_1y.period_end == date(2025, 3, 31) and cclfx_1y.lag_quarters == 3
+    assert cell(bundle, "net_return_3y", "CCLFX").period_end == date(2025, 3, 31)
     assert cell(bundle, "net_return_3y", "CCLFX").value == Decimal("10.69")  # CCLFX does report a 3Y
 
 
@@ -109,3 +107,24 @@ def test_apex_gap_note_is_framed_as_a_hypothesis(bundle):
     assert rec.value == Decimal("10.31")  # the reported figure is official
     assert "fund accountant to confirm" in rec.normalizations[-1]
     assert any("fund accountant to confirm" in n for n in bundle.footnotes)
+
+
+def test_cclfx_1y_conflict_shows_both_and_chooses_neither(bundle):
+    """Client, W3: the performance table (11.78%) and Financial Highlights (11.58%) disagree for the
+    year to 3/31/25. Show both with their sources, flagged for the PM; nothing selected."""
+    rec = cell(bundle, "net_return_1y", "CCLFX")
+    assert rec.status == "conflict" and rec.value is None and rec.confidence is None
+    assert rec.gap == "Conflict: PM to choose"
+    values = sorted(str(c.value) for c in rec.candidates)
+    assert values == ["11.58", "11.78"] and all(c.verified for c in rec.candidates)
+    sections = {c.citation.section.split(":")[0] for c in rec.candidates}
+    assert any(s.startswith("Performance") for s in sections) and any(s.startswith("Financial Highlights") for s in sections)
+    assert rec.citation.quote == ""  # the cell links the filing but quotes neither value as "the" source
+    assert any(i.kind == "conflict" and i.fund == "CCLFX" and "11.58" in i.message and "11.78" in i.message
+               for i in bundle.issues)
+
+
+def test_conflict_cell_text_lists_both_values(bundle):
+    from benchmark.export_excel import cell_text
+    text = cell_text(cell(bundle, "net_return_1y", "CCLFX"))
+    assert text.startswith("Conflict: PM to choose") and "11.78%" in text and "11.58%" in text

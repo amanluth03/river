@@ -42,3 +42,22 @@ def test_provenance_has_one_row_per_record(tmp_path):
     assert prov.max_row - 1 == n_records
     header = [c.value for c in prov[1]]
     assert {"Accession", "Source quote", "Confidence", "Status"} <= set(header)
+
+
+def test_amendment_flag_is_in_the_cell_and_styled(tmp_path):
+    """Client, W3: "Superseded by amendment: re-check" appears in the cell itself, styled, in Excel and Word."""
+    from docx import Document
+    from benchmark import export_word
+    from benchmark.config import AMENDMENT_FLAG
+
+    bundle, _ = make_bundle(tmp_path)
+    rec = bundle.table["nav_per_share"]["TAKIX"]
+    rec.flags.append(AMENDMENT_FLAG)  # as amendments.flag would set it
+    assert export_excel.cell_text(rec).startswith(AMENDMENT_FLAG)
+    export_excel.write(bundle, tmp_path / "b.xlsx")
+    nav_row = next(r for r in load_workbook(tmp_path / "b.xlsx")["Benchmark"].iter_rows() if r[0].value == "NAV per share")
+    takix = nav_row[3]
+    assert takix.value.startswith(AMENDMENT_FLAG) and takix.font.bold and takix.fill.fgColor.rgb.endswith("F8D7D3")
+    export_word.write(bundle, tmp_path / "b.docx")
+    word_cell = next(r for r in Document(tmp_path / "b.docx").tables[0].rows if r.cells[0].text == "NAV per share").cells[3]
+    assert word_cell.text.startswith(AMENDMENT_FLAG) and "F8D7D3" in word_cell._tc.xml

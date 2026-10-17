@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
-from .config import GAP_LABELS, STATUS_LABELS
+from .config import GAP_LABELS, RUN_ID_FORMAT, STATUS_LABELS
 
 Status = Literal[
     "ok",  # verified and shown
@@ -16,6 +16,7 @@ Status = Literal[
     "not_extracted",  # v1 does not extract this (fees); the record links to where the terms are
     "excluded_by_rule",  # e.g. market-price return, excluded by the NAV-basis rule
     "fetch_failed",  # EDGAR could not be reached for this fund
+    "conflict",  # two verified figures disagree and the client's rule is to show both, choose neither
 ]
 Method = Literal["ixbrl", "table", "regex", "llm", "computed", "client_csv"]
 
@@ -138,3 +139,8 @@ class RunBundle(BaseModel):
     issues: list[Issue]
     filings: list[dict] = Field(default_factory=list)  # every filing used, with hash
     footnotes: list[str] = Field(default_factory=list)  # shown under the table and in Excel
+
+    @property
+    def run_id(self) -> str:
+        """The run's folder name under runs/, which holds its bundle.json (pipeline.run writes it there)."""
+        return self.created_at.strftime(RUN_ID_FORMAT)

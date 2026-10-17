@@ -119,3 +119,15 @@ Tip: links starting `sec.gov/ix?doc=` open the SEC inline-XBRL viewer. Use Ctrl+
 | GBDC | Return on average net assets | 9.36% (FY to 9/30/25) | same 10-K, "Total return based on average net asset value(6)" |
 | KREF | Economic D/E | 4.00x | [10-K 0001628280-26-005092](https://www.sec.gov/Archives/edgar/data/1631596/000162828026005092/kref-20251231.htm), balance sheet: 2,862,689 + 1,198,332 + 632,516 ÷ 1,172,550 |
 | KREF | Distribution yield | 7.67% | same filing, "Dividends Declared per Share of Common Stock $ 1.00" ÷ book value 13.04 |
+
+## 2026-10-16 — Scope change and Window 3 fixes
+
+- **DONE** Word export (`benchmark/export_word.py`): same run bundle and same cell text as the Excel (`export_excel.cell_text`), footnotes, exceptions, provenance appendix, links on every competitor cell, "Generated report" with run time and code version (decision 55). Tests compare every Word cell with the Excel cell.
+- **DONE (client W3)** CCLFX 1Y now "Conflict: PM to choose" listing 11.78% (performance table) and 11.58% (Financial Highlights), both verified and cited, nothing selected (decision 56).
+- **DONE (client W3)** CCLFX regulatory leverage "Not reported by fund", computed 421.1% in the note "computed, low confidence" (decision 57).
+- **DONE (client W3)** "Superseded by amendment: re-check" at the top of the cell, styled, in UI, Excel and Word; one cell-text function for all outputs, so Word carries every flag, lag, "(computed)" and conflict (decisions 58, 59).
+- **IN PROGRESS** Fee links landing at the fee sentence (decision 62), custom-metrics definitions file (decision 60), doc updates.
+- **FIX** Quarter-end runs at Q1–Q3 2025 exposed: zero-balance debt lines absent from balance sheets (CCLFX 3/31/25), TAKIX "Secured credit facility" (singular) in 2024, GBDC 6/9-month distribution pieces ignored (2.59% at 3/31/25 was a 3-month figure). Fixed (decisions 52, 53).
+- **NOTE** The grey area and unopenable downloads Aman saw in Chrome came from the Playwright test browser (its viewport had been resized; its downloads go to a temp folder), not from the app. The test browser was closed.
+- **DONE** Fee links land on the fee sentence via unique-text fragments, checked by clicking in a real browser (decision 72). Custom-metrics definitions file with validation and Medium cap (decisions 63, 66). Run ID stamped on exports (74).
+- **REVIEW** Independent reviewer: Word matches Excel cell for cell; 44/44 citations re-verified; fee fragments unique; no blank cells. Fixed its findings: amendment flags now reach conflict cells and computed notes; KREF label in Word provenance; dirty-tree marker on the code version; conflict link lines named (decision 75). Open nit: CCLFX has no incentive fee terms in its report, so its incentive cell links to the management fee sentence.

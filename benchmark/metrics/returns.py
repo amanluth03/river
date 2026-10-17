@@ -13,29 +13,45 @@ import re
 from decimal import Decimal
 
 from ..config import (DAYS_ONE_YEAR, GBDC_RETURN_CONCEPT, GBDC_RETURN_LABEL, GBDC_RETURN_NOTE,
-                      HIGHLIGHTS_RETURN_ROW, NOT_REPORTED_BY_FUND, RETURN_COLUMNS, RETURN_HEADER, RETURN_ROW,
+                      CONFLICT_PM_CHOOSE, HIGHLIGHTS_RETURN_ROW, NOT_REPORTED_BY_FUND, RETURN_COLUMNS, RETURN_HEADER, RETURN_ROW,
                       RETURN_TABLE_CAPTION, RETURN_TOLERANCE)
 from ..conflicts import resolve
 from ..extract import tables
 from ..records import Candidate, ValueRecord
 from ..verify import parse_numbers
-from .common import FundData, check_all, citation, ixbrl_candidates, missing
+from .common import FundData, check_all, citation, ixbrl_candidates, missing, table_candidate
 
 METRICS = list(RETURN_COLUMNS)
 
 
-def _highlights_check(data: FundData, filing, cand: Candidate) -> None:
-    """Second source for the 1Y figure: the fiscal-year total return in the Financial Highlights."""
+def _highlights_candidate(data: FundData, filing, cand: Candidate) -> Candidate | None:
+    """Second source for the 1Y figure: the same fiscal year's total return in the Financial Highlights,
+    as its own verified candidate. Records on `cand` whether the two agree."""
     for hit in tables.find_row(data.fetch(filing), HIGHLIGHTS_RETURN_ROW[data.fund.ticker], data.fund.share_class):
         for i, end in enumerate(hit.column_dates):
             if end == cand.period_end and tables.period_months(hit.column_titles[i]) == 12:
-                other = hit.values[i]
-                ok = abs(other - cand.value) <= RETURN_TOLERANCE
-                cand.reconciliation = (f"Financial Highlights total return for the year to {end}: {other}% vs "
+                other = table_candidate(data.fund, filing, hit, i, cand.metric, "pct",
+                                        f"Financial Highlights (Class {data.fund.share_class})")
+                ok = abs(other.value - cand.value) <= RETURN_TOLERANCE
+                cand.reconciliation = (f"Financial Highlights total return for the year to {end}: {other.value}% vs "
                                        f"{cand.value}% in the performance table ({'agree' if ok else 'DISAGREE'}). "
                                        f"Highlights row: \"{hit.quote}\"")
                 cand.reconciliation_ok = ok
-                return
+                return other
+    return None
+
+
+def _conflict(fund, metric: str, cands: list[Candidate], period) -> ValueRecord:
+    """Client, W3 (decision 56): two reported figures in one filing disagree. Show both with their sources,
+    flagged for the PM, and select neither: no value, no confidence, and a citation that quotes neither."""
+    listed = "; ".join(f"{c.value}% in {c.citation.section} ({c.citation.form} {c.citation.accession})" for c in cands)
+    neutral = cands[0].citation.model_copy(update={
+        "section": "Both sources below; neither selected", "quote": "", "row_label": None, "column_label": None,
+        "column_header": None, "char_offset": None, "find_match": None, "find_total": None})
+    return ValueRecord(fund=fund.ticker, metric=metric, value=None, unit="pct", status="conflict",
+                       reason=f"{CONFLICT_PM_CHOOSE}: {listed}.", period_end=period, citation=neutral,
+                       candidates=cands, flags=["conflict"],
+                       resolution=f"Two figures for the same period in one filing: {listed}. PM to choose.")
 
 
 def _interval(data: FundData) -> dict[str, ValueRecord]:
@@ -66,9 +82,11 @@ def _interval(data: FundData) -> dict[str, ValueRecord]:
             cand = Candidate(fund=fund.ticker, metric=metric, value=value, unit="pct", period_end=row.period,
                              method="table", column_index=index, is_amendment=filing.amendment,
                              citation=where.model_copy(update={"column_label": row.header[j]}))
-            if metric == "net_return_1y":
-                _highlights_check(data, filing, cand)
-            check_all([cand], data.cache)
+            other = _highlights_candidate(data, filing, cand) if metric == "net_return_1y" else None
+            check_all([cand] + ([other] if other else []), data.cache)
+            if other is not None and cand.verified and other.verified and cand.reconciliation_ok is False:
+                out[metric] = _conflict(fund, metric, [cand, other], row.period)
+                continue
             out[metric] = resolve([cand])
             out[metric].note = "NAV basis"
         return out

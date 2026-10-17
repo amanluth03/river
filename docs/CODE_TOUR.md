@@ -25,7 +25,7 @@ app.py  Runner.start ──► pipeline.run(as_of)
                            │
                            └─ RunBundle (records.py) ─► runs/<timestamp>/bundle.json
 app.py  /api/bundle ─► static/app.js (Table · Exceptions · NAV trend, side panel per cell)
-app.py  /api/export.xlsx ─► export_excel.write (Benchmark, Provenance, Exceptions, NAV Trend; sheets protected)
+app.py  /api/export.{xlsx,docx} ─► export_excel.write (4 protected sheets) / export_word.write (same cell text)
 ```
 
 | File | Job | Key functions |
@@ -45,7 +45,7 @@ app.py  /api/export.xlsx ─► export_excel.write (Benchmark, Provenance, Excep
 | `metrics/*.py` | One module per deck row group (sections 2a to 2e) | `candidates` / `records` / `record` |
 | `amendments.py` | Flags values whose filing was later amended | `flag`, `amended_filings` |
 | `apex.py` | Client CSV loader; compounding-gap and fee-change checks | `load`, `_compounding_issues` |
-| `export_excel.py`, `app.py`, `static/` | Output | `write`, `cell_text`; FastAPI routes; `app.js renderTable/openPanel` |
+| `export_excel.py`, `export_word.py`, `app.py`, `static/` | Output. `export_excel.cell_text` is the one function that turns a record into cell text (value, confidence, "(computed)", note, lag, amendment flag, conflict values); Word reuses it, so the two files can't differ | `cell_text`, `alert`, `write`; FastAPI routes; `app.js cellHtml/openPanel` |
 
 **The invariant to say out loud:** nothing reaches the table unless `verify.check` passed on it, or (for computed values) on every input. `records.py` enforces this in the model validator, so code that tried otherwise would raise an error, not show a number.
 
@@ -79,7 +79,7 @@ The same path applies to GBDC (`Debt` ÷ `Total Net Assets`, checked against 178
 ### 2c. Regulatory leverage
 - **TAKIX 352.0%:** `leverage._takix_coverage` matches `config.TAKIX_COVERAGE_SENTENCE` in the Note 7 text. The sentence's date must equal the balance-sheet date. It becomes a `regex` candidate and goes through the gate. Confidence is Medium: narrative text confirmed by the balance sheet (`confidence.score`, decision 38).
 - **GBDC 178.94%:** `leverage._gbdc_coverage` reads `config.COVERAGE_CONCEPT` facts that sit in a table row (`common.ixbrl_candidates` skips the "178.9%" in running text). It goes through the gate plus the XBRL element check, and comes out High after the same cross-check.
-- **CCLFX 421.1%:** computed = (net assets + debt) ÷ debt from the same verified inputs as 2b. It is Low, because it uses carrying values and the fund reports coverage per facility only (decision 36).
+- **CCLFX:** the cell says "Not reported by fund" (client, W3: decision 57), because the fund reports coverage per facility only. The computed (net assets + debt) ÷ debt = 421.1% sits in the note as "computed, low confidence", with its verified inputs and formula in the panel.
 - **KREF:** `missing(..., "not_applicable", config.KREF_NOT_1940_ACT)`. The note quotes KREF's own verified ratios.
 - **Apex:** `config.NOT_IN_CLIENT_DATA` (`pipeline._apex_column`).
 
@@ -96,7 +96,7 @@ GBDC uses tagged quarter and fiscal-year facts (`_ixbrl_pieces`, lengths from XB
 ### 2e. Returns
 - **TAKIX 1Y 6.27%:** `returns._interval` → `tables.find_named_columns_row(path, "^I Share$", …)` in the "Average Annual Total Returns through December 31, 2025" table. The column is found by header text (`config.RETURN_COLUMNS`). The gate checks the quote and the column position. `returns._highlights_check` compares it with the Financial Highlights "Total Return, at Net Asset Value" for the same year (6.27), so confidence is High.
 - **TAKIX 3Y:** the header has no 3-Year column, so the cell says `Not reported by fund` with a link to the table row.
-- **CCLFX 1Y 11.78%:** same path, from N-CSR 0001213900-25-052571 (as of 3/31/25, 3Q lag). The highlights say 11.58%, so it is Low and both numbers appear in the reason and in Exceptions (decision 41).
+- **CCLFX 1Y:** same path, from N-CSR 0001213900-25-052571 (as of 3/31/25). `returns._highlights_candidate` reads the same year from the Financial Highlights as its own verified candidate: 11.58% vs 11.78%. Because they disagree, `returns._conflict` builds a record with status "conflict": no value, no confidence, both candidates with their own citations, and a cell citation that quotes neither. The cell says "Conflict: PM to choose" (client, W3: decision 56).
 - **GBDC 9.36%:** `returns._gbdc` reads `config.GBDC_RETURN_CONCEPT` from the latest 10-K, keeping only facts whose context spans one year (a 10-Q's 3-month 1.65% can't slip in). The label is `config.GBDC_RETURN_LABEL` and the note `config.GBDC_RETURN_NOTE`. 3Y/5Y say `Not reported by fund`.
 - **KREF:** not applicable (no NAV-based return).
 - **Apex 1Y 10.31%:** from the CSV. `apex._compounding_issues` finds the 22 to 28 bps gap, and `pipeline._apex_column` attaches `config.APEX_GAP_NOTE` (Dana's approved framing, "fund accountant to confirm") as a footnote and an Exceptions line.
@@ -159,7 +159,7 @@ The design rule: **every parse fails to a labeled gap, never to a different numb
 | The performance table gains or loses a column, or a "%" cell layout changes | `tables.find_named_columns_row` requires the header and row to have the same cell count | Refused, so a gap; a missing horizon says "Not reported by fund" with the columns it does show |
 | The fee sentence is reworded | `config.FEE_SECTION` | Link to the report plus "Fee terms are in the prospectus narrative" |
 | A filing is re-downloaded with different bytes | `cache.verify_hash` in the gate | Every value from it fails: "hash mismatch" |
-| An amendment is filed | `amendments.flag` on every run | The value is flagged "Superseded by amendment: re-check" |
+| An amendment is filed | `amendments.flag` on every run | "Superseded by amendment: re-check" appears at the top of the cell, styled red, in the UI, Excel and Word, and in Exceptions (decision 58) |
 | EDGAR is unreachable or refuses (403) | `edgar.get_bytes`, `pipeline.run` try/except per fund | That fund's column reads "EDGAR fetch failed"; the other funds still run |
 | A filing declares no charset | `textnorm._parse` detects UTF-8 itself | Handled (it once produced "Â" for non-breaking spaces) |
 
@@ -182,8 +182,8 @@ The design rule: **every parse fails to a labeled gap, never to a different numb
 5. **"Why not just use an LLM to read the filings?"**
    An LLM can return a plausible number from the wrong share class or period, and the client's rule is that an unfindable figure counts as wrong. The extractors here are deterministic, and the gate rereads every number. An LLM was reserved for narrative items (fees) with mandatory verbatim-quote checking; in v1 the fees are links instead (decision 45).
 
-6. **"CCLFX shows 11.78% but you say its own report also says 11.58%. Which is right?"**
-   Both are printed in the same annual report: 11.78% in the performance table, 11.58% in the Financial Highlights for the same year. We show the performance-table figure (the fund's presented return), mark it Low and show both. That is a question for the client, not something to resolve silently (decision 41).
+6. **"CCLFX's annual report gives 11.78% and 11.58% for the same year. Which do you show?"**
+   Neither as "the" value: the client's rule (W3, decision 56) is that the PM chooses. The cell says "Conflict: PM to choose" and lists both, each with its own verified citation (performance table and Financial Highlights). In code, that's `returns._conflict` producing status "conflict", which the model allows to have no value.
 
 7. **"Your distribution yield for CCLFX: where are the 12 months?"**
    The six months to 9/30/25 (0.54), plus the year to 3/31/25 (0.90), minus the six months to 9/30/24 (0.30), from two semi-annual reports. Each period's length is read from its own column title, never assumed. Every piece is a verified, cited input, and the formula is shown in the cell's panel.

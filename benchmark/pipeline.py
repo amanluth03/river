@@ -23,9 +23,14 @@ def _missing(fund: str, metric: str, status: str, reason: str, period: date | No
 
 
 def _code_version() -> str:
+    """The commit the run used, marked if the working tree had uncommitted changes (reviewer finding:
+    a report must not claim a commit that didn't produce it)."""
     try:
-        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
-                              cwd=config.ROOT, timeout=5).stdout.strip() or "uncommitted"
+        git = lambda *args: subprocess.run(["git", *args], capture_output=True, text=True, cwd=config.ROOT,
+                                           timeout=5).stdout.strip()
+        commit = git("rev-parse", "--short", "HEAD") or "uncommitted"
+        dirty = git("status", "--porcelain", "--untracked-files=no", "--", "benchmark")
+        return f"{commit}+uncommitted changes" if dirty else commit
     except OSError:
         return "unknown"
 
@@ -241,7 +246,7 @@ def run(as_of: date = config.DEFAULT_AS_OF, progress: Callable[[str], None] = pr
     bundle = RunBundle(as_of=as_of, created_at=datetime.now(), code_version=_code_version(),
                        funds=[apex.FUND] + [f.ticker for f in funds], rows=ROWS, table=table, trend=trend,
                        issues=issues, filings=used, footnotes=footnotes)
-    out = Path(runs_dir) / bundle.created_at.strftime("%Y%m%d-%H%M%S-%f")
+    out = Path(runs_dir) / bundle.run_id
     out.mkdir(parents=True, exist_ok=True)
     (out / "bundle.json").write_text(bundle.model_dump_json(indent=1))
     progress("Done.")

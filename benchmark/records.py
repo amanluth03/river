@@ -103,6 +103,8 @@ class ValueRecord(BaseModel):
         if self.value is not None:
             return ""
         for label in GAP_LABELS:
+            if self.reason.startswith(label + " ("):  # keep a short qualifier, e.g. "(CSV starts Q1 2024)"
+                return self.reason[:self.reason.index(")", len(label)) + 1]
             if self.reason.startswith(label):
                 return label
         return STATUS_LABELS.get(self.status, self.status)

@@ -122,7 +122,7 @@ def test_leverage_that_disagrees_with_reported_coverage_is_low(tmp_path):
     out = leverage.records(data)
     econ = out["leverage_economic"]
     assert econ.value == Decimal("0.40") and econ.confidence == "low" and "check_failed" in econ.flags
-    assert "DISAGREE" in econ.check
+    assert "differ by more than 0.05x" in econ.check
     assert out["leverage_regulatory"].confidence == "low"  # the narrative figure is not confirmed either
 
 

@@ -1,9 +1,9 @@
-"""Word export: the deck table, footnotes, exceptions and a provenance appendix.
+"""Word export: the deck table, footnotes, exceptions, the NAV trend and a provenance appendix.
 
 Built from the same run bundle as the Excel export, and every table cell uses export_excel.cell_text,
 so the Word and Excel files can never show different numbers. Word can't be locked like the Excel
 sheets, so the document says it is generated and prints the run time and code version: any edit can be
-checked against the run it came from.
+checked against the run it came from. The run ID, code version and as-of date are in every page footer.
 """
 from pathlib import Path
 
@@ -14,7 +14,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt, RGBColor
 
-from .export_excel import alert, cell_text
+from .export_excel import TREND_COLUMNS, alert, cell_text, find_hint, issue_row, trend_row
 from .records import RunBundle, ValueRecord
 
 LINK_COLOR = "1F4E79"
@@ -110,9 +110,46 @@ def _exceptions(doc, bundle: RunBundle):
     _header_row(table, ["Type", "Fund", "Metric", "Message"])
     for issue in bundle.issues:
         cells = table.add_row().cells
-        for cell, value in zip(cells, [issue.kind, issue.fund, issue.metric or "", issue.message]):
+        for cell, value in zip(cells, issue_row(issue, bundle)):  # plain labels, same as the Excel sheet
             cell.text = value
     _small(table)
+
+
+def _input_text(x) -> str:
+    """One input of a computed value: value, row label, filing, and its find hint when it has one."""
+    c = x.citation
+    hint = find_hint(c)
+    return f"{x.value} = {c.row_label} ({c.form} {c.accession}{'; ' + hint if hint else ''})"
+
+
+def _trend(doc, bundle: RunBundle):
+    """Every NAV point for every fund, the same rows as the Excel "NAV Trend" sheet. Gaps are rows with
+    their reason (decision 4); each sourced point's accession links to its filing (decision 21)."""
+    doc.add_heading("NAV trend", level=1)
+    doc.add_paragraph("Interval funds report NAV semi-annually: other quarters are gaps with the reason, never "
+                      "estimates. KREF reports book value per share.").runs[0].font.size = Pt(8)
+    table = doc.add_table(rows=1, cols=len(TREND_COLUMNS))
+    table.style = "Table Grid"
+    _header_row(table, TREND_COLUMNS)
+    accession_col = TREND_COLUMNS.index("Accession")
+    for fund, points in bundle.trend.items():
+        for p in points:
+            cells = table.add_row().cells
+            for i, (cell, value) in enumerate(zip(cells, trend_row(fund, p))):
+                text = "" if value is None else str(value)
+                if i == accession_col and text and p.citation and p.citation.url.startswith("http"):
+                    _hyperlink(cell.paragraphs[0], p.citation.url, text)
+                else:
+                    cell.text = text
+    _small(table, 7)
+
+
+def _footer(doc, bundle: RunBundle):
+    """Run ID, code version and as-of date on every page, so a printed page traces back to its run."""
+    for section in doc.sections:
+        paragraph = section.footer.paragraphs[0]
+        paragraph.text = f"Run ID {bundle.run_id} · code version {bundle.code_version} · as of {bundle.as_of}"
+        paragraph.runs[0].font.size = Pt(8)
 
 
 def _provenance(doc, bundle: RunBundle):
@@ -131,10 +168,10 @@ def _provenance(doc, bundle: RunBundle):
             cells[1].text = rec.display() if rec.value is not None else rec.gap
             if cit:
                 _hyperlink(cells[2].paragraphs[0], cit.url, f"{cit.form} {cit.accession}")
-                cells[3].text = cit.section
+                hint = find_hint(cit)  # same hint as the Excel "Find hint" column
+                cells[3].text = f"{cit.section}\n{hint}" if hint else cit.section
             if rec.inputs:
-                cells[4].text = " | ".join(f"{x.value} = {x.citation.row_label} ({x.citation.form} "
-                                           f"{x.citation.accession})" for x in rec.inputs)
+                cells[4].text = " | ".join(_input_text(x) for x in rec.inputs)
             elif cit:
                 cells[4].text = cit.quote or rec.reason
             else:
@@ -155,6 +192,8 @@ def write(bundle: RunBundle, path: Path) -> Path:
     meta.runs[0].font.color.rgb = RGBColor(0x55, 0x55, 0x55)
     _benchmark(doc, bundle)
     _exceptions(doc, bundle)
+    _trend(doc, bundle)
     _provenance(doc, bundle)
+    _footer(doc, bundle)
     doc.save(path)
     return Path(path)

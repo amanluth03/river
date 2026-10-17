@@ -34,7 +34,7 @@ def _highlights_candidate(data: FundData, filing, cand: Candidate) -> Candidate 
                                         f"Financial Highlights (Class {data.fund.share_class})")
                 ok = abs(other.value - cand.value) <= RETURN_TOLERANCE
                 cand.reconciliation = (f"Financial Highlights total return for the year to {end}: {other.value}% vs "
-                                       f"{cand.value}% in the performance table ({'agree' if ok else 'DISAGREE'}). "
+                                       f"{cand.value}% in the performance table ({'agree' if ok else 'differ'}). "
                                        f"Highlights row: \"{hit.quote}\"")
                 cand.reconciliation_ok = ok
                 return other

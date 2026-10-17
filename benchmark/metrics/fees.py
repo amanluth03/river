@@ -18,7 +18,7 @@ from urllib.parse import quote
 from .. import textnorm
 from ..config import (FEE_ANCHOR_MAX_CHARS, FEE_FRAGMENT_MAX_EXTRA_WORDS, FEE_FRAGMENT_UNSAFE_CHARS,
                       FEE_QUOTE_CHARS, FEE_SECTION, FEES_IN_NARRATIVE, FEES_NOT_EXTRACTED,
-                      INCENTIVE_TERMS, NO_INCENTIVE_TERMS_NOTE)
+                      INCENTIVE_FEE_SECTION, INCENTIVE_TERMS, NO_INCENTIVE_TERMS_NOTE)
 from ..records import ValueRecord
 from .common import FundData, citation, latest_filing_for, missing
 
@@ -32,11 +32,15 @@ LANDING_NOTE = {
 
 
 def _linked_record(data: FundData, filing, metric: str, note: str = "") -> ValueRecord:
-    """A "Not extracted in v1" cell whose citation lands on the fee sentence of `filing`."""
+    """A "Not extracted in v1" cell whose citation lands on the fee sentence of `filing`: the incentive-fee
+    sentence for the incentive row where one is configured (Aman, final pass), else the management-fee one."""
     fund = data.fund
     path = data.fetch(filing)
     text = textnorm.document_text(path)
     phrase = FEE_SECTION[fund.ticker]
+    incentive = INCENTIVE_FEE_SECTION.get(fund.ticker)
+    if metric == "incentive_fee" and incentive and incentive in text:
+        phrase = incentive
     offset = text.find(phrase)
     if offset < 0:
         where = citation(fund, filing, "Whole report", "", filing.period)

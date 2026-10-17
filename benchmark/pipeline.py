@@ -8,7 +8,7 @@ from typing import Callable
 
 from dotenv import load_dotenv
 
-from . import amendments, apex, config, filings, verify
+from . import amendments, apex, config, filings, links, verify
 from .cache import Cache
 from .config import APEX_GAP_NOTE, NOT_IN_CLIENT_DATA, ROWS
 from .conflicts import resolve
@@ -55,6 +55,11 @@ def _apex_column(as_of: date, issues: list[Issue]):
         issues.append(Issue(kind="client_data", fund=apex.FUND, metric="net_return_1y", message=note,
                             details={"gaps_bps": gaps}))
     return column, by_quarter
+
+
+def _apex_trend_gap(by_quarter) -> str:
+    first = min(by_quarter)
+    return config.APEX_TREND_GAP.format(first=f"Q{(first.month - 1) // 3 + 1} {first.year}")
 
 
 def _filings_in_window(fund, subs, as_of, window, issues):
@@ -107,6 +112,7 @@ def _fund_nav(fund, found, fetch, cache, as_of, window, progress):
 
 def _nav_trend(fund, records, read, window, issues) -> list[ValueRecord]:
     points = []
+    label = nav.KREF_LABEL if fund.kind == "mreit" else None  # KREF gaps say "Book value per share" too
     for q in window:
         if q in records:
             points.append(records[q])
@@ -115,12 +121,14 @@ def _nav_trend(fund, records, read, window, issues) -> list[ValueRecord]:
             reason = f"Report for this date was read ({', '.join(read[q])}) but no NAV row could be located."
             issues.append(Issue(kind="missing", fund=fund.ticker, metric="nav_per_share", message=f"{q}: {reason}"))
             points.append(_missing(fund.ticker, "nav_per_share", "not_found", reason, q))
+            points[-1].label = label
         elif fund.kind == "interval":
             points.append(_missing(fund.ticker, "nav_per_share", "not_reported",
                                    "Interval fund reports NAV semi-annually; no published figure for this date.", q))
         else:
             points.append(_missing(fund.ticker, "nav_per_share", "not_found",
                                    "No verified figure found in the filings for this date.", q))
+            points[-1].label = label
     return points
 
 
@@ -158,6 +166,10 @@ def _record_issues(records: list[ValueRecord], issues: list[Issue]):
                                 message=f"{r.period_end}: shown with Low confidence. {r.confidence_reason}"))
         if r.method == "computed" and r.status == "ok":
             issues.append(Issue(kind="computed", fund=r.fund, metric=r.metric, message=r.normalizations[0]))
+        if r.status == "not_reported" and r.inputs:  # a computed figure kept in a note (CCLFX coverage)
+            issues.append(Issue(kind="check_failed", fund=r.fund, metric=r.metric, message=(
+                f"{r.period_end}: {r.note}, shown only as a note; the cell says \"{r.gap}\". "
+                f"{r.normalizations[0] if r.normalizations else ''}")))
         if "not_comparable" in r.flags:
             issues.append(Issue(kind="not_comparable", fund=r.fund, metric=r.metric, message=r.note))
         if r.status in ("not_found", "not_verified") and r.metric != "nav_per_share":
@@ -216,7 +228,8 @@ def run(as_of: date = config.DEFAULT_AS_OF, progress: Callable[[str], None] = pr
     for metric, _ in ROWS:
         table[metric][apex.FUND] = apex_column[metric]
     trend[apex.FUND] = [apex_by_quarter[q]["nav_per_share"] if q in apex_by_quarter
-                        else _missing(apex.FUND, "nav_per_share", "not_found", "No client row.", q) for q in window]
+                        else _missing(apex.FUND, "nav_per_share", "not_reported", _apex_trend_gap(apex_by_quarter), q)
+                        for q in window]
 
     edgar_error = ""
     try:
@@ -241,6 +254,9 @@ def run(as_of: date = config.DEFAULT_AS_OF, progress: Callable[[str], None] = pr
         for metric, _ in ROWS:
             table[metric][fund.ticker] = column[metric]
 
+    # Every citation link lands on its source text (row label, quote start, or nearest unique text above it).
+    links.apply_deep_links(RunBundle(as_of=as_of, created_at=datetime.now(), funds=[], rows=ROWS, table=table,
+                                     trend=trend, issues=[]), cache)
     footnotes = [n.format(as_of=as_of) for n in config.FOOTNOTES]
     if apex_column["net_return_1y"].normalizations:
         footnotes.append("Apex Ridge 1Y: " + apex_column["net_return_1y"].normalizations[-1])

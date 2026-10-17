@@ -93,7 +93,10 @@ KREF_BOOK_VALUE_LABEL = "Book value per share"  # W2: '"Book value per share" no
 GBDC_RETURN_LABEL = "Return on average net assets"  # W2: "label it clearly as return on average net assets"
 GBDC_RETURN_NOTE = "Not directly comparable"  # W2: "mark it not directly comparable" (decision 13)
 NOT_REPORTED_BY_FUND = "Not reported by fund"  # W2: '"not reported" is acceptable, but label it' (decision 15)
-NOT_IN_CLIENT_DATA = "Not in client data"  # W2: '"Not in client data" for our regulatory leverage is fine' (21)
+NOT_IN_CLIENT_DATA = "Not in client data"
+# Apex trend quarters before the CSV's first row (Aman, final pass): "Not in client data (CSV starts Q1 2024)";
+# the first quarter is read from the CSV, not typed here.
+APEX_TREND_GAP = NOT_IN_CLIENT_DATA + " (CSV starts {first})"  # W2: '"Not in client data" for our regulatory leverage is fine' (21)
 KREF_NOT_1940_ACT = "Not applicable: KREF is not a 1940 Act fund"  # W2 draft approved by Dana (decision 10)
 # KREF return cells: the short reason in the cell (Aman, final pass: decision 78). KREF-K25 reports book value
 # per share, not NAV, so there is no NAV-based total return; market-price returns are excluded (decision 2).
@@ -128,14 +131,14 @@ FOOTNOTES = [
     "As-of date {as_of}: each fund's latest report for a period ending on or before it; lags are shown in the "
     "cell (decisions 4, 9).",
     "Competitor figures from SEC EDGAR filings, each verified against the source text before display. Every cell "
-    "links to its filing; the Provenance section has form, accession, section, source quote and every input of "
+    "links to its filing; the Provenance table has form, accession, section, source quote and every input of "
     "a computed value (decision 7).",
     "[H]/[M]/[L] = confidence. Low values are listed under Exceptions for review.",
     "CCLFX and TAKIX: Class I. Returns and distribution yields on NAV basis (decisions 2, 3).",
     "Economic leverage = total debt (incl. mandatory redeemable preferred) / net assets. Regulatory leverage = "
     "asset coverage as reported under the 1940 Act (decision 10).",
     "Distribution yield = trailing 12 months of distributions per share / period-end NAV per share (decision 16).",
-    "GBDC 1Y is its reported return on average net assets: not directly comparable to NAV total return (13).",
+    "GBDC 1Y is its reported return on average net assets: not directly comparable to NAV total return (decision 13).",
     "KREF is a mortgage REIT, not a like-for-like peer: Book value per share, no 1940 Act leverage. CIO to decide "
     "whether it stays (decision 14).",
 ]
@@ -220,6 +223,20 @@ PERIOD_LENGTHS = [(r"\bthree months ended\b", 3), (r"\bsix months ended\b", 6), 
                   (r"\byears? ended\b", 12)]
 # GBDC-Q126 / GBDC-K25: "Dividends and distributions declared per common share", tagged with:
 DISTRIBUTION_CONCEPT = "us-gaap:CommonStockDividendsPerShareDeclared"
+# GBDC special and supplemental distributions (Aman, final pass: a trailing 12 months that includes one says so).
+# Source: GBDC-K25 Item 5 distributions table, footnotes (4) and (5); each quote must still be in the cached
+# filing for the note to appear. Payment dates and amounts are as those footnotes state them.
+GBDC_SPECIALS_SOURCE = ("1476765", "0001476765-25-000096", "gbdc-20250930.htm",
+                        "10-K 0001476765-25-000096, Item 5 distributions table, footnotes (4) and (5)")
+GBDC_SPECIALS_QUOTES = [
+    "declared a supplemental distribution of $0.04 paid on December 13, 2024",
+    "declared a series of special distributions totaling $0.15 per share, distributed in three consecutive "
+    "quarterly payments of $0.05 per share per quarter. The first and second special distributions were paid to "
+    "stockholders on June 27, 2024 and September 13, 2024, respectively. The remaining special distribution was "
+    "paid on December 13, 2024",
+]
+GBDC_SPECIALS = [("2024-06-27", "0.05", "special"), ("2024-09-13", "0.05", "special"),
+                 ("2024-12-13", "0.05", "special"), ("2024-12-13", "0.04", "supplemental")]
 # A fiscal year or a trailing year is 365 or 366 days between context start and end; 360-370 allows
 # for period ends that fall on a weekend.
 DAYS_ONE_YEAR = (360, 370)
@@ -262,6 +279,12 @@ FEE_QUOTE_CHARS = 400
 # 0001213900-25-052571 has 0 matches for "incentive" or "hurdle"; TAKIX, GBDC and KREF reports do), the
 # incentive cell says so and links the nearest fee section. Never "charges no incentive fee": no quote says it.
 INCENTIVE_TERMS = r"incentive|hurdle"
+# Where each report states its incentive-fee terms (the incentive row links here; Aman, final pass: decision 80).
+# Each phrase occurs once in its report. KREF's management and incentive terms share one sentence (FEE_SECTION).
+INCENTIVE_FEE_SECTION = {
+    "TAKIX": "the Fund pays its Adviser an incentive fee",  # TAKIX-A25 Note 5
+    "GBDC": "The income and capital gains incentive fee calculation",  # GBDC-Q126 Note 3
+}
 NO_INCENTIVE_TERMS_NOTE = "Annual report states no incentive-fee terms; see prospectus fee table"
 # Client, W3: the fee cell shows its link in the cell itself.
 FEE_LINK_TEXT = "view fee terms ↗"  # how much of the fee sentence the citation shows (enough for the rate and its base)
@@ -344,3 +367,18 @@ FEE_FRAGMENT_UNSAFE_CHARS = "'\"-"
 # roughly 2,000 characters when tables or spacing are present (dense prose shows more), so 4,000 is the
 # conservative end. Beyond that the link stays the plain document URL and the record says so.
 FEE_ANCHOR_MAX_CHARS = 4000
+
+
+# DEEP-LINK CONSTANTS (owned by the deep-link task)
+# Every citation link lands on its source text (Aman/client: "not the top of the filing"). benchmark/links.py
+# reuses the fee-link rules above (FEE_FRAGMENT_UNSAFE_CHARS, FEE_FRAGMENT_MAX_EXTRA_WORDS, the encoding).
+# A narrative quote (no row label) starts its fragment with this many words, then grows until unique:
+# four words make a visible highlight; one or two could be a lone common word.
+DEEP_LINK_QUOTE_START_WORDS = 4
+# When the row label repeats (TAKIX "Net asset value, end of period": 7 classes), the link goes to the
+# nearest text before the row that occurs once: a heading or caption, so at most this many words
+# (task brief: "a cell/paragraph text of <= ~12 words"; longer blocks are body text, not a heading).
+DEEP_LINK_HEADING_MAX_WORDS = 12
+# ...and no further back than this many characters of document text: the same "two scrolls" bound
+# as the fee anchor fallback (FEE_ANCHOR_MAX_CHARS), so the reader still sees the row after one search.
+DEEP_LINK_HEADING_WINDOW = FEE_ANCHOR_MAX_CHARS

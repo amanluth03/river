@@ -16,7 +16,7 @@ All nine deck rows are filled for every fund, from the filings, as of Dec 31, 20
 | Management / incentive fee | "Not extracted in v1 · view fee terms ↗" (incentive: annual report states no incentive-fee terms) | Not extracted in v1 · view fee terms ↗ | same | same |
 | NAV per share | $10.77 (9/30/25) | $8.32 | $14.84 | Book value per share $13.04 |
 | Economic leverage (D/E) | 0.31x | 0.40x | 1.25x | 4.00x |
-| Regulatory leverage (asset coverage) | Not reported by fund (note: computed 421.1%, computed, low confidence) | 352.0% | 178.94% | Not applicable: not a 1940 Act fund |
+| Regulatory leverage (asset coverage) | Not reported by fund (note: 421.1% (computed, low confidence)) | 352.0% | 178.94% | Not applicable: not a 1940 Act fund |
 | Distribution yield (TTM ÷ NAV) | 10.58% | 9.01% | 10.51% | 7.67% (on book value) |
 
 Gaps are labeled with the reason (for example "Not reported by fund"), never blank, and every cell links to its filing. `context/build_log.md` has the hand-check link for each value; `docs/CODE_TOUR.md` traces each one through the code.
@@ -91,7 +91,7 @@ tests/             offline tests on fixtures cut from the real filings (tests/cu
 ## Known limitations (v1)
 
 - Fee terms are not extracted; the cell links to the sentence that states them (decision 45).
-- HTML filings have no fixed page numbers. Citations give the section, row, column header, character offset and a find hint ("search the row label: match 2 of 7").
+- HTML filings have no fixed page numbers. Every cell's link (UI, Excel and Word) lands on its source text: the row label or quote start when it is unique in the filing, else the nearest unique text above the cited row, with a find hint ("search “Net asset value, end of period”: match 2 of 7", counted ignoring case like a browser's find). One citation (KREF "Cash and cash equivalents", an input to KREF's leverage check) has no unique text nearby and opens the filing with its hint. Text-fragment links need a current browser and a click.
 - Table parsing is tuned to these four funds' layouts and row labels (all in `config.py`). When a layout or label changes, the value shows as missing, never mis-mapped.
 - Only filings whose period falls in the 8-quarter window are read.
 - Amendments are flagged, not re-pulled automatically.

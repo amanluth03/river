@@ -38,11 +38,13 @@ FIXTURES = {
         "1725472/000172547226000003/ctac-20251231.htm",
         ["Net asset value, end of period", "Note-on-note loans", "I Share"],
         ["asset coverage (inclusive of preferred equity shares)",
-         "The base management fee is calculated at an annual rate of"]),
+         "The base management fee is calculated at an annual rate of",
+         "the Fund pays its Adviser an incentive fee"]),
     "gbdc_10q_2025-12_full.html": (
         "1476765/000147676526000012/gbdc-20251231.htm",
         ["Net asset value per common share", "Asset coverage ratio", "Dividends and distributions declared per common share"],
-        ["The base management fee is calculated at an annual rate equal to"]),
+        ["The base management fee is calculated at an annual rate equal to",
+         "The income and capital gains incentive fee calculation"]),
     "gbdc_10k_2025.html": (
         "1476765/000147676525000096/gbdc-20250930.htm",
         ["Total return based on average net asset value", "Dividends and distributions declared per common share"], []),

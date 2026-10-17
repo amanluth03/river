@@ -10,6 +10,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from .config import AMENDMENT_FLAG, FEE_LINK_TEXT
+from .labels import issue_kind_label, metric_label, status_label
 from .records import RunBundle, ValueRecord
 
 BOLD = Font(bold=True)
@@ -101,18 +102,41 @@ def _inputs_text(rec: ValueRecord) -> str:
                       for x in rec.inputs)
 
 
-def _provenance_row(rec: ValueRecord) -> list:
+def find_hint(c) -> str:
+    """How to land on the value in the filing with the browser's find: search the row label, take match N."""
+    return f"search “{c.row_label}”: match {c.find_match} of {c.find_total}" if c and c.find_match else ""
+
+
+def _provenance_row(rec: ValueRecord, metric_name: str) -> list:
     c = rec.citation
     others = "; ".join(f"{x.value} ({x.citation.accession}, {'verified' if x.verified else x.verify_reason})"
                        for x in rec.candidates
                        if c is None or x.citation.accession != c.accession or x.value != rec.value)
-    find = f"search \"{c.row_label}\": match {c.find_match} of {c.find_total}" if c and c.find_match else ""
-    return [rec.fund, rec.metric, str(rec.value) if rec.value is not None else "", rec.unit, rec.status, rec.reason,
+    return [rec.fund, metric_name, str(rec.value) if rec.value is not None else "", rec.unit, rec.status, rec.reason,
             str(rec.period_end or ""), rec.lag_quarters, c and c.form, c and c.accession,
             str(c.filing_date or "") if c else "", c and c.document, c and c.url, c and c.section,
-            c and c.row_label, c and c.column_label, c and c.quote, c and c.char_offset, find, c and c.sha256,
+            c and c.row_label, c and c.column_label, c and c.quote, c and c.char_offset, find_hint(c), c and c.sha256,
             rec.method, " ".join(rec.normalizations), _inputs_text(rec), rec.check, rec.confidence,
             rec.confidence_reason, rec.resolution, ", ".join(rec.flags), rec.note, others]
+
+
+def issue_row(issue, bundle: RunBundle) -> list:
+    """One Exceptions line in plain words: type, fund, metric (deck row label), message."""
+    return [issue_kind_label(issue.kind), issue.fund, metric_label(issue.metric, bundle.rows), issue.message]
+
+
+TREND_COLUMNS = ["Fund", "Quarter end", "Value", "Status / reason", "Form", "Accession",
+                 "Source quote (or section)", "Confidence"]
+
+
+def trend_row(fund: str, p: ValueRecord) -> list:
+    """One NAV trend point. A gap is a row with its reason, never left out (decision 4); the record's label
+    names the fund's measure, so KREF reads "Book value per share" (decision 18)."""
+    c = p.citation
+    status = "ok" if p.status == "ok" else f"{status_label(p.status)}: {p.reason}"
+    return [f"{fund} ({p.label})" if p.label else fund, str(p.period_end),
+            str(p.value) if p.value is not None else "", status, c and c.form, c and c.accession,
+            c and (c.quote or c.section), p.confidence]
 
 
 def write(bundle: RunBundle, path: Path) -> Path:
@@ -122,26 +146,24 @@ def write(bundle: RunBundle, path: Path) -> Path:
 
     prov = wb.create_sheet("Provenance")
     _header(prov, PROVENANCE_COLUMNS)
-    for metric, _ in bundle.rows:
+    for metric, label in bundle.rows:
         for fund in bundle.funds:
-            prov.append(_provenance_row(bundle.table[metric][fund]))
+            rec = bundle.table[metric][fund]
+            prov.append(_provenance_row(rec, rec.label or label))  # KREF: "Book value per share"
 
     exc = wb.create_sheet("Exceptions")
     _header(exc, ["Type", "Fund", "Metric", "Message"])
     for issue in bundle.issues:
-        exc.append([issue.kind, issue.fund, issue.metric or "", issue.message])
+        exc.append(issue_row(issue, bundle))
     exc.column_dimensions["D"].width = 120
 
     trend = wb.create_sheet("NAV Trend")
-    _header(trend, ["Fund", "Quarter end", "Value", "Status / reason", "Form", "Accession", "Source quote",
-                    "Confidence"])
+    _header(trend, TREND_COLUMNS)
     for fund, points in bundle.trend.items():
         for p in points:
-            c = p.citation
-            trend.append([f"{fund} ({p.label})" if p.label else fund, str(p.period_end),
-                          str(p.value) if p.value is not None else "",
-                          "ok" if p.status == "ok" else f"{p.status}: {p.reason}", c and c.form,
-                          c and c.accession, c and c.quote, p.confidence])
+            trend.append(trend_row(fund, p))
+            if p.citation and p.citation.url.startswith("http"):
+                trend.cell(row=trend.max_row, column=6).hyperlink = p.citation.url  # the accession links
     for ws in wb.worksheets:
         ws.protection.sheet = True  # no password: stops accidental edits, like the locked template
     wb.save(path)

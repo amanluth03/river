@@ -178,3 +178,18 @@ def test_kref_return_cells_say_why(bundle):
         assert rec.gap == "Not applicable: no NAV-based return (REIT reports book value)"
         assert cell_text(rec).startswith("Not applicable: no NAV-based return (REIT reports book value)")
     assert cell(bundle, "leverage_regulatory", "KREF").gap == "Not applicable: KREF is not a 1940 Act fund"
+
+
+def test_final_pass_labels_and_links(bundle):
+    """Aman, final pass: incentive links land on incentive sentences; plain cross-check wording;
+    CCLFX coverage note without 'Computed'; an Exceptions row for it; Apex trend gaps labeled."""
+    takix, gbdc = cell(bundle, "incentive_fee", "TAKIX"), cell(bundle, "incentive_fee", "GBDC")
+    assert "incentive fee" in takix.citation.quote and "incentive fee" in gbdc.citation.quote.lower()
+    assert takix.citation.url != cell(bundle, "management_fee", "TAKIX").citation.url
+    assert "agree within 0.05x" in cell(bundle, "leverage_economic", "TAKIX").check
+    assert cell(bundle, "leverage_regulatory", "CCLFX").note == "421.1% (computed, low confidence)"
+    assert any(i.kind == "check_failed" and i.fund == "CCLFX" and i.metric == "leverage_regulatory"
+               and "421.1% (computed, low confidence)" in i.message for i in bundle.issues)
+    apex_gaps = [p for p in bundle.trend["Apex Ridge"] if p.value is None]
+    assert all(p.gap == "Not in client data (CSV starts Q1 2024)" for p in apex_gaps)
+    assert cell(bundle, "distribution_yield", "GBDC").note == "TTM ÷ NAV"  # Q4 2025: no specials in the window

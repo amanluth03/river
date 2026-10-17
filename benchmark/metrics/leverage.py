@@ -31,6 +31,11 @@ TWO = Decimal("0.01")
 SECTION = "Balance sheet (Statement of Assets and Liabilities / Financial Condition)"
 
 
+def _agreement(ok: bool) -> str:
+    """Plain wording for the cross-check result (Aman, final pass)."""
+    return f"agree within {LEVERAGE_TOLERANCE}x" if ok else f"differ by more than {LEVERAGE_TOLERANCE}x"
+
+
 def implied_de(coverage_pct: Decimal) -> Decimal:
     """Asset coverage C = (net assets + senior securities) / senior securities, so D/E = 1 / (C - 1)."""
     return 1 / (coverage_pct / 100 - 1)
@@ -158,7 +163,7 @@ def records(data: FundData) -> dict[str, ValueRecord]:
         out[REG] = missing(fund.ticker, REG, "not_reported",
                            f"{NOT_REPORTED_BY_FUND}: the fund reports asset coverage per facility only, not for the "
                            f"fund as a whole.", period, citation=equity.citation,
-                           note=f"Computed {coverage}% ({COMPUTED_LOW_NOTE})")
+                           note=f"{coverage}% ({COMPUTED_LOW_NOTE})")
         out[REG].inputs = [equity] + debts
         out[REG].normalizations = [
             f"Asset coverage = (net assets {equity.value:,} + debt {total_debt:,}) / debt {total_debt:,} = {coverage}%. "
@@ -178,8 +183,7 @@ def records(data: FundData) -> dict[str, ValueRecord]:
         implied = implied_de(reg.value)
         ok = abs(implied - de) <= LEVERAGE_TOLERANCE
         check = (f"D/E implied by reported asset coverage {reg.value}% is {implied.quantize(TWO)}x vs "
-                 f"{de.quantize(TWO)}x from the balance sheet ({'agree' if ok else 'DISAGREE'} within "
-                 f"{LEVERAGE_TOLERANCE}x)", ok)
+                 f"{de.quantize(TWO)}x from the balance sheet ({_agreement(ok)})", ok)
     elif fund.kind == "mreit" and cash is not None:
         total = next((c for c in _kref_reported(data, filing, period) if re.match(KREF_TOTAL_LEVERAGE, c.citation.row_label)), None)
         if total is not None:
@@ -187,7 +191,7 @@ def records(data: FundData) -> dict[str, ValueRecord]:
             ok = abs(ours - total.value) <= LEVERAGE_TOLERANCE
             check = (f"KREF's reported total leverage ratio {total.value}x vs (debt {total_debt:,} - cash "
                      f"{cash.value:,}) / equity {equity.value:,} = {ours.quantize(TWO)}x "
-                     f"({'agree' if ok else 'DISAGREE'} within {LEVERAGE_TOLERANCE}x)", ok)
+                     f"({_agreement(ok)})", ok)
     if check and reg.status == "ok" and reg.method != "computed":
         # The same comparison also confirms the reported coverage figure.
         shown = chosen_candidate(reg)

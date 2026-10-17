@@ -12,7 +12,9 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
-from ..config import DISTRIBUTION_CONCEPT, DISTRIBUTION_ROWS, PERIOD_DAYS
+from .. import textnorm
+from ..config import (DISTRIBUTION_CONCEPT, DISTRIBUTION_ROWS, GBDC_SPECIALS, GBDC_SPECIALS_QUOTES,
+                      GBDC_SPECIALS_SOURCE, PERIOD_DAYS)
 from ..conflicts import resolve
 from ..extract import tables
 from ..records import Candidate, ValueRecord
@@ -87,6 +89,24 @@ def _ttm(best, period):
     return None, 0
 
 
+def _specials_in(data: FundData, start: date, end: date) -> str:
+    """GBDC special/supplemental distributions paid in (start, end], if the cited footnotes still say so."""
+    cik, accession, document, _ = GBDC_SPECIALS_SOURCE
+    path = data.cache.path(cik, accession, document)
+    if not path.exists():
+        return ""
+    text = textnorm.document_text(path)
+    if not all(q in text for q in GBDC_SPECIALS_QUOTES):
+        return ""
+    paid = [(date.fromisoformat(d), Decimal(a), kind) for d, a, kind in GBDC_SPECIALS]
+    inside = [(d, a, kind) for d, a, kind in paid if start < d <= end]
+    if not inside:
+        return ""
+    total = sum(a for _, a, _ in inside)
+    kinds = " and ".join(sorted({kind for _, _, kind in inside}))
+    return f"${total} of {kinds} distributions (paid {', '.join(sorted({d.isoformat() for d, _, _ in inside}))})"
+
+
 def record(data: FundData) -> ValueRecord:
     fund, nav_cell = data.fund, data.nav_cell
     if nav_cell.status != "ok":
@@ -118,6 +138,11 @@ def record(data: FundData) -> ValueRecord:
                    basis_assumption=(f"filings give only {months} months of distributions ending {period}; "
                                      f"shown for that period, not annualized") if short else "")
     out.note = ("TTM ÷ book value" if fund.kind == "mreit" else "TTM ÷ NAV") if not short else f"{months} months only"
+    if fund.kind == "bdc":
+        specials = _specials_in(data, months_before(period, 12), period)
+        if specials:
+            out.note += f"; includes {specials}"
+            out.normalizations.append(f"Includes {specials}, as stated in {GBDC_SPECIALS_SOURCE[3]}.")
     if short:
         out.flags.append("under_12_months")
     if any("conflict" in rec.flags or "pm_review" in rec.flags for _, _, rec in parts):

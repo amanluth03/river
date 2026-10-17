@@ -97,8 +97,10 @@ def _check(candidate: Candidate, cache: Cache) -> tuple[bool, str]:
     if cit.row_label:
         # So a reviewer can find it: "search for the row label; it's match 2 of 7".
         label = textnorm.normalize(cit.row_label)
-        cit.find_match = doc_text.count(label, 0, offset + len(label))
-        cit.find_total = doc_text.count(label)
+        # Counted ignoring case, as a browser's find does (deep-link review: case-sensitive counts misled readers).
+        lower_doc, lower_label = doc_text.lower(), label.lower()
+        cit.find_match = lower_doc.count(lower_label, 0, offset + len(label))
+        cit.find_total = lower_doc.count(lower_label)
 
     # 3. Value is the expected number in the quote.
     numbers = numbers_after_label(quote, cit.row_label)

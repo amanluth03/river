@@ -1,5 +1,4 @@
 """Local web app: one page to run the benchmark, review every value with its source, and export."""
-import tempfile
 import threading
 import webbrowser
 from datetime import date
@@ -7,7 +6,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel
@@ -16,6 +15,7 @@ from . import config, export_excel, pipeline
 
 STATIC = Path(__file__).parent / "static"
 RUNS_DIR = config.RUNS_DIR
+EXPORTS_DIR = config.EXPORTS_DIR
 
 app = FastAPI(title="Apex Ridge peer benchmark")
 # Only answer requests addressed to this machine. Blocks DNS-rebinding: a web page that points its own
@@ -70,8 +70,9 @@ def favicon():
 
 
 @app.get("/api/bundle")
-def bundle():
-    latest = pipeline.latest_bundle(RUNS_DIR)
+def bundle(as_of: date | None = None):
+    """The latest run, or the latest run for one quarter-end when `as_of` is given."""
+    latest = pipeline.latest_bundle(RUNS_DIR, as_of)
     if latest is None:
         return JSONResponse({}, status_code=404)
     return Response(latest.model_dump_json(), media_type="application/json")
@@ -93,14 +94,16 @@ def status():
 
 
 @app.get("/api/export.xlsx")
-def export():
-    latest = pipeline.latest_bundle(RUNS_DIR)
+def export(as_of: date | None = None):
+    """The workbook for the run on screen. A copy is also saved in exports/ so the analyst can always find it."""
+    latest = pipeline.latest_bundle(RUNS_DIR, as_of)
     if latest is None:
         raise HTTPException(404, "Run the benchmark first.")
-    out = Path(tempfile.mkdtemp()) / f"peer_benchmark_{latest.as_of}.xlsx"
+    EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    out = EXPORTS_DIR / f"peer_benchmark_{latest.as_of}_{latest.created_at:%Y%m%d-%H%M%S}.xlsx"
     export_excel.write(latest, out)
-    return FileResponse(out, filename=out.name,
-                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return Response(out.read_bytes(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{out.name}"', "X-Saved-Path": str(out)})
 
 
 def main():

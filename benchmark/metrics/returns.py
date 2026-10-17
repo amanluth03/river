@@ -70,7 +70,7 @@ def _interval(data: FundData) -> dict[str, ValueRecord]:
                 _highlights_check(data, filing, cand)
             check_all([cand], data.cache)
             out[metric] = resolve([cand])
-            out[metric].note = "Average annual, NAV basis" if metric != "net_return_1y" else "NAV basis"
+            out[metric].note = "NAV basis"
         return out
     reason = "No average annual total returns table found in the annual reports read."
     return {m: missing(fund.ticker, m, "not_found", reason) for m in METRICS}
@@ -94,7 +94,9 @@ def _gbdc(data: FundData) -> dict[str, ValueRecord]:
         one_year = missing(fund.ticker, "net_return_1y", "not_found",
                            f"Tagged {GBDC_RETURN_CONCEPT} for a full fiscal year not found in the 10-Ks read.")
     else:
-        one_year.note = f"{GBDC_RETURN_NOTE}: fiscal year to {one_year.period_end}; not a NAV total return"
+        one_year.note = GBDC_RETURN_NOTE
+        one_year.normalizations.append(f"{GBDC_RETURN_NOTE}: GBDC's return on average net assets for the fiscal "
+                                       f"year to {one_year.period_end}, not a NAV total return.")
         one_year.flags.append("not_comparable")
     reason = (f"{NOT_REPORTED_BY_FUND}: GBDC reports one fiscal year at a time (return on average net assets); "
               f"compounding years into 3Y/5Y was ruled out by the client (W2).")

@@ -12,7 +12,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
-from ..config import DAYS_ONE_QUARTER, DAYS_ONE_YEAR, DISTRIBUTION_CONCEPT, DISTRIBUTION_ROWS
+from ..config import DISTRIBUTION_CONCEPT, DISTRIBUTION_ROWS, PERIOD_DAYS
 from ..conflicts import resolve
 from ..extract import tables
 from ..records import Candidate, ValueRecord
@@ -51,8 +51,7 @@ def _ixbrl_pieces(data: FundData, period: date) -> list[tuple[int, Candidate]]:
             if fact.period_start is None or fact.period_end > period:
                 continue
             days = (fact.period_end - fact.period_start).days
-            months = (12 if DAYS_ONE_YEAR[0] <= days <= DAYS_ONE_YEAR[1]
-                      else 3 if DAYS_ONE_QUARTER[0] <= days <= DAYS_ONE_QUARTER[1] else None)
+            months = next((m for (low, high), m in PERIOD_DAYS if low <= days <= high), None)
             if months:
                 pieces.append((months, cand))
     return pieces
@@ -118,7 +117,7 @@ def record(data: FundData) -> ValueRecord:
     out = computed(fund.ticker, METRIC, value, "pct", period, inputs + [nav_input], formula,
                    basis_assumption=(f"filings give only {months} months of distributions ending {period}; "
                                      f"shown for that period, not annualized") if short else "")
-    out.note = f"Trailing 12 months / {nav_name}" if not short else f"{months} months only, not annualized"
+    out.note = ("TTM ÷ book value" if fund.kind == "mreit" else "TTM ÷ NAV") if not short else f"{months} months only"
     if short:
         out.flags.append("under_12_months")
     if any("conflict" in rec.flags or "pm_review" in rec.flags for _, _, rec in parts):

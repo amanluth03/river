@@ -110,6 +110,8 @@ def computed(fund: str, metric: str, value: Decimal, unit: str, period: date, in
                          normalizations=[formula], label=label, note=note)
     if check:
         record.check = check[0]
+    if check and check[1] and basis_assumption:
+        basis_assumption = ""  # the independent figure agrees, so the assumption is confirmed
     if check and not check[1]:
         record.confidence, record.confidence_reason = "low", f"Computed from verified inputs, but the check failed: {check[0]}"
         record.flags.append("check_failed")

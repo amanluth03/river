@@ -37,28 +37,41 @@ def implied_de(coverage_pct: Decimal) -> Decimal:
 
 
 def _balance_sheet(data: FundData, filing, period: date):
-    """Verified equity row, debt rows (and KREF's cash row) from one balance-sheet table, or a reason."""
+    """Verified equity row, debt rows (and KREF's cash row) from one balance-sheet table, or a reason.
+
+    A debt line can be absent when its balance is zero (CCLFX had no "Secured borrowings" at 3/31/25), so
+    debt rows are optional, but the absent ones are returned so the caller can say so and lower confidence
+    unless an independent check proves the total. Rows printed as percentages (a schedule of investments'
+    "Net Assets 100.0%") are never balance-sheet amounts and are skipped.
+    """
     rows = LEVERAGE_ROWS[data.fund.ticker]
     path = data.fetch(filing)
+    best = None
     for equity_hit in tables.find_row(path, rows["equity"], None):
-        if period not in equity_hit.column_dates:
+        if period not in equity_hit.column_dates or "%" in equity_hit.quote:
             continue
-        i = equity_hit.column_dates.index(period)
-        debt_hits = [tables.row_in_same_table(equity_hit, regex) for regex in rows["debt"]]
+        found = {regex: tables.row_in_same_table(equity_hit, regex) for regex in rows["debt"]}
+        found = {regex: hit for regex, hit in found.items() if hit is not None and "%" not in hit.quote}
         cash_hit = tables.row_in_same_table(equity_hit, rows["cash"]) if "cash" in rows else None
-        if any(h is None for h in debt_hits) or ("cash" in rows and cash_hit is None):
-            continue  # not the balance sheet (another table with a "Net Assets" row)
-        make = lambda hit: table_candidate(data.fund, filing, hit, i, "leverage_input", "amount", SECTION)
-        equity, debts = make(equity_hit), [make(h) for h in debt_hits]
-        cash = make(cash_hit) if cash_hit else None
-        everything = [equity] + debts + ([cash] if cash else [])
-        check_all(everything, data.cache)
-        failed = [c for c in everything if not c.verified]
-        if failed:
-            return None, f"Balance-sheet row '{failed[0].citation.row_label}' failed verification: {failed[0].verify_reason}"
-        return (equity, debts, cash), ""
-    labels = ", ".join([rows["equity"]] + rows["debt"])
-    return None, f"No balance-sheet table in {filing.form} {filing.accession} has all of these rows for {period}: {labels}"
+        if not found or ("cash" in rows and cash_hit is None):
+            continue  # not the balance sheet
+        if best is None or len(found) > len(best[1]):
+            best = (equity_hit, found, cash_hit)
+    if best is None:
+        labels = ", ".join([rows["equity"]] + rows["debt"])
+        return None, f"No balance-sheet table in {filing.form} {filing.accession} has these rows for {period}: {labels}", []
+    equity_hit, found, cash_hit = best
+    i = equity_hit.column_dates.index(period)
+    make = lambda hit: table_candidate(data.fund, filing, hit, i, "leverage_input", "amount", SECTION)
+    equity, debts = make(equity_hit), [make(h) for h in found.values()]
+    cash = make(cash_hit) if cash_hit else None
+    everything = [equity] + debts + ([cash] if cash else [])
+    check_all(everything, data.cache)
+    failed = [c for c in everything if not c.verified]
+    if failed:
+        return None, f"Balance-sheet row '{failed[0].citation.row_label}' failed verification: {failed[0].verify_reason}", []
+    absent = [regex for regex in rows["debt"] if regex not in found]
+    return (equity, debts, cash), "", absent
 
 
 def _formula(equity: Candidate, debts: list[Candidate], value: Decimal) -> str:
@@ -78,8 +91,8 @@ def _takix_coverage(data: FundData, filing, period: date) -> ValueRecord | None:
                          citation=citation(data.fund, filing, "Notes, Borrowings (asset coverage)", m.group(0), period))
         check_all([cand], data.cache)
         record = resolve([cand])
-        record.note = (f"Inclusive of preferred shares; debt only: {m.group('debt_only')}%. "
-                       f"1940 Act minimum {COVERAGE_MINIMUM['interval']}.")
+        record.normalizations.append(f"Inclusive of preferred shares; debt only: {m.group('debt_only')}%. "
+                                     f"1940 Act minimum {COVERAGE_MINIMUM['interval']}.")
         return record
     return None
 
@@ -92,7 +105,7 @@ def _gbdc_coverage(data: FundData, filing, period: date) -> ValueRecord | None:
         return None
     check_all(cands, data.cache)
     record = resolve(cands)
-    record.note = f"1940 Act minimum for a BDC: {COVERAGE_MINIMUM['bdc']}."
+    record.normalizations.append(f"1940 Act minimum for a BDC: {COVERAGE_MINIMUM['bdc']}.")
     return record
 
 
@@ -117,7 +130,7 @@ def records(data: FundData) -> dict[str, ValueRecord]:
         return {ECON: missing(fund.ticker, ECON, "not_found", reason), REG: missing(fund.ticker, REG, "not_found", reason)}
     period = cell.period_end
     filing = latest_filing_for(data, period)
-    sheet, reason = _balance_sheet(data, filing, period)
+    sheet, reason, absent = _balance_sheet(data, filing, period)
     if sheet is None:
         out = {ECON: missing(fund.ticker, ECON, "not_found", reason, period)}
     else:
@@ -147,13 +160,15 @@ def records(data: FundData) -> dict[str, ValueRecord]:
                             f"{total_debt:,} = {coverage}%",
                             basis_assumption=("the fund reports asset coverage per facility only; this fund-level "
                                               "figure uses balance-sheet carrying values, not principal"),
-                            note=f"Computed: fund reports per facility only. 1940 Act minimum {COVERAGE_MINIMUM['interval']}.")
+                            note="Computed")
+        out[REG].normalizations.append(f"The fund reports asset coverage per facility only. 1940 Act minimum "
+                                       f"{COVERAGE_MINIMUM['interval']}.")
     else:
         out[REG] = missing(fund.ticker, REG, "not_found", reason, period)
 
     reg = out[REG]
     if reg.status == "ok":
-        reg.note = f"Implies D/E {implied_de(reg.value).quantize(TWO)}x. " + reg.note
+        reg.note = (f"Implies D/E {implied_de(reg.value).quantize(TWO)}x" + (f"; {reg.note}" if reg.note else "")).strip()
 
     if sheet is None:
         return out
@@ -180,7 +195,17 @@ def records(data: FundData) -> dict[str, ValueRecord]:
         reg.confidence, reg.confidence_reason = score(reg, [c for c in reg.candidates if c.verified], shown)
     value = de.quantize(TWO)
     inputs = [equity] + debts + ([cash] if cash and check else [])
-    out[ECON] = computed(fund.ticker, ECON, value, "ratio", period, inputs, _formula(equity, debts, value), check=check)
+    formula = _formula(equity, debts, value)
+    assumption = ""
+    if absent:
+        names = ", ".join(a.lstrip("^") for a in absent)
+        formula += f" Not on this balance sheet, so taken as zero: {names}."
+        if not (check and check[1]):  # only an agreeing independent figure proves nothing is missing
+            assumption = f"debt lines not on this balance sheet were taken as zero ({names})"
+    out[ECON] = computed(fund.ticker, ECON, value, "ratio", period, inputs, formula, check=check,
+                         basis_assumption=assumption)
     if fund.kind == "mreit":
-        out[ECON].note = "Gross debt / KREF stockholders' equity (preferred stock counted as equity, as KREF does)."
+        out[ECON].note = "Gross debt"
+        out[ECON].normalizations.append("Gross debt / KREF stockholders' equity; preferred stock counted as "
+                                        "equity, as KREF does.")
     return out

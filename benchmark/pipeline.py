@@ -45,7 +45,7 @@ def _apex_column(as_of: date, issues: list[Issue]):
     gaps = [i.details["gap_bps"] for i in apex_issues if i.metric == "net_return_1y" and "gap_bps" in i.details]
     if gaps and column["net_return_1y"].status == "ok":
         note = APEX_GAP_NOTE.format(gap=round(sum(gaps) / len(gaps)))
-        column["net_return_1y"].note = "See footnote: 1Y vs compounded quarters."
+        column["net_return_1y"].note = "See gap footnote"
         column["net_return_1y"].normalizations.append(note)
         issues.append(Issue(kind="client_data", fund=apex.FUND, metric="net_return_1y", message=note,
                             details={"gaps_bps": gaps}))
@@ -248,6 +248,10 @@ def run(as_of: date = config.DEFAULT_AS_OF, progress: Callable[[str], None] = pr
     return bundle
 
 
-def latest_bundle(runs_dir: Path = config.RUNS_DIR) -> RunBundle | None:
-    runs = sorted(Path(runs_dir).glob("*/bundle.json"))
-    return RunBundle.model_validate_json(runs[-1].read_text()) if runs else None
+def latest_bundle(runs_dir: Path = config.RUNS_DIR, as_of: date | None = None) -> RunBundle | None:
+    """The most recent run, optionally only among runs for one as-of date."""
+    for path in sorted(Path(runs_dir).glob("*/bundle.json"), reverse=True):
+        bundle = RunBundle.model_validate_json(path.read_text())
+        if as_of is None or bundle.as_of == as_of:
+            return bundle
+    return None

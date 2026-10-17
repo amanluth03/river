@@ -45,3 +45,23 @@ def test_requests_with_a_foreign_host_header_are_refused(tmp_path, monkeypatch):
     # DNS rebinding: a web page that resolves its own domain to 127.0.0.1 must not reach the API.
     client, _ = client_with_bundle(tmp_path, monkeypatch)
     assert client.get("/api/bundle", headers={"host": "evil.example"}).status_code == 400
+
+
+def test_bundle_and_export_by_quarter(tmp_path, monkeypatch):
+    """Picking a quarter loads that quarter's run; export writes the file and keeps a copy in exports/."""
+    from datetime import date
+    from fastapi.testclient import TestClient
+    from benchmark import app as app_module
+    from tests.test_pipeline import make_bundle
+
+    make_bundle(tmp_path)
+    monkeypatch.setattr(app_module, "RUNS_DIR", tmp_path / "runs")
+    monkeypatch.setattr(app_module, "EXPORTS_DIR", tmp_path / "exports")
+    client = TestClient(app_module.app, base_url="http://127.0.0.1")
+    assert client.get("/api/bundle?as_of=2025-12-31").json()["as_of"] == "2025-12-31"
+    assert client.get("/api/bundle?as_of=2025-09-30").status_code == 404  # never run
+    resp = client.get("/api/export.xlsx?as_of=2025-12-31")
+    saved = resp.headers["X-Saved-Path"]
+    assert resp.status_code == 200 and resp.content[:2] == b"PK"  # a real .xlsx (zip) file
+    assert (tmp_path / "exports").exists() and saved.endswith(".xlsx")
+    assert open(saved, "rb").read() == resp.content

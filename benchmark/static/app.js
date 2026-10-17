@@ -213,11 +213,39 @@ function renderAll() {
   if (!$("#tab-trend").hidden) renderTrend();
 }
 
-async function loadBundle() {
-  const resp = await fetch("/api/bundle");
-  if (!resp.ok) { $("#run-info").textContent = "No run yet. Choose a quarter-end and press Run."; return; }
+// Load the latest run, or the latest run for one quarter-end. Returns false if there is none.
+async function loadBundle(asOf) {
+  const resp = await fetch(asOf ? `/api/bundle?as_of=${asOf}` : "/api/bundle");
+  if (!resp.ok) {
+    if (!bundle) $("#run-info").textContent = "No run yet. Choose a quarter-end and press Run.";
+    return false;
+  }
   bundle = await resp.json();
   renderAll();
+  return true;
+}
+
+// Picking a quarter shows its latest run straight away; if it has never been run, say so.
+async function pickQuarter(d) {
+  setAsOf(d);
+  if (bundle && bundle.as_of === d) return;
+  if (await loadBundle(d)) { showStatus(""); return; }
+  showStatus(`No run for ${quarterName(d)} yet. Press Run to build it (about 20 seconds).`);
+}
+
+// Export the run on screen. The server also keeps a copy in exports/ and says where.
+async function exportExcel() {
+  if (!bundle) { showStatus("Run the benchmark first.", true); return; }
+  showStatus("Building the Excel file…");
+  const resp = await fetch(`/api/export.xlsx?as_of=${bundle.as_of}`);
+  if (!resp.ok) { showStatus("Export failed: " + ((await resp.json()).detail || resp.status), true); return; }
+  const saved = resp.headers.get("X-Saved-Path");
+  const name = saved ? saved.split("/").pop() : `peer_benchmark_${bundle.as_of}.xlsx`;
+  const url = URL.createObjectURL(await resp.blob());
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  showStatus(`Downloaded ${name}. A copy is also saved at ${saved}`);
 }
 
 function showStatus(text, isError = false) {
@@ -243,7 +271,7 @@ async function startRun() {
     if (!s.running) {
       clearInterval(poll);
       $("#run-btn").disabled = false;
-      if (!s.error) { showStatus(""); await loadBundle(); }
+      if (!s.error) { showStatus(""); await loadBundle(selectedAsOf); }
     }
   }, 1000);
 }
@@ -263,7 +291,8 @@ function setAsOf(d) {
 }
 $("#as-of").innerHTML = AS_OF_CHOICES.map((d) =>
   `<button type="button" role="radio" data-date="${d}" title="${d}">${quarterName(d)}</button>`).join("");
-document.querySelectorAll("#as-of button").forEach((b) => b.addEventListener("click", () => setAsOf(b.dataset.date)));
+document.querySelectorAll("#as-of button").forEach((b) => b.addEventListener("click", () => pickQuarter(b.dataset.date)));
+$("#export-btn").addEventListener("click", exportExcel);
 setAsOf(selectedAsOf);
 const closePanel = () => { $("#panel").hidden = true; document.body.classList.remove("panel-open"); };
 $("#run-btn").addEventListener("click", startRun);

@@ -26,6 +26,7 @@ COMPETITOR_CSV = STARTER / "competitor_cik_list.csv"  # client starter package
 APEX_CSV = STARTER / "apex_ridge_fund_data.csv"  # client starter package
 CACHE_DIR = ROOT / "data" / "cache"
 RUNS_DIR = ROOT / "runs"
+EXPORTS_DIR = ROOT / "exports"  # every Excel export is also saved here (gitignored)
 
 # Apex Ridge's latest quarter in the client CSV (Q4 2025); confirmed as the as-of reading in W2 (decision 9).
 DEFAULT_AS_OF = date(2025, 12, 31)
@@ -157,7 +158,8 @@ LEVERAGE_ROWS = {
     },
     "TAKIX": {  # TAKIX-A25 Consolidated Statement of Assets and Liabilities
         "equity": r"^Net Assets$",
-        "debt": [r"^Secured credit facilities", r"^Mandatory redeemable preferred shares", r"^Note-on-note loans"],
+        # "Secured credit facilities" in TAKIX-A25; "Secured credit facility" in N-CSR 0001725472-25-000003 (2024).
+        "debt": [r"^Secured credit facilit(y|ies)", r"^Mandatory redeemable preferred shares", r"^Note-on-note loans"],
     },
     "GBDC": {  # GBDC-Q126 Consolidated Statements of Financial Condition ("Debt $ 4,903,076" = principal)
         "equity": r"^Total Net Assets",
@@ -209,9 +211,11 @@ PERIOD_LENGTHS = [(r"\bthree months ended\b", 3), (r"\bsix months ended\b", 6), 
 # GBDC-Q126 / GBDC-K25: "Dividends and distributions declared per common share", tagged with:
 DISTRIBUTION_CONCEPT = "us-gaap:CommonStockDividendsPerShareDeclared"
 # A fiscal year or a trailing year is 365 or 366 days between context start and end; 360-370 allows
-# for period ends that fall on a weekend. A quarter is 89-92 days; a half year 181-184.
+# for period ends that fall on a weekend.
 DAYS_ONE_YEAR = (360, 370)
-DAYS_ONE_QUARTER = (88, 93)
+# XBRL duration (days from context start to end) -> months. A 10-Q tags the quarter and the year to date
+# (GBDC-Q2 FY25: six months to 3/31/25), so 6- and 9-month pieces exist and are needed for a TTM.
+PERIOD_DAYS = [((88, 93), 3), ((180, 184), 6), ((271, 276), 9), (DAYS_ONE_YEAR, 12)]
 
 # ---------------------------------------------------------------- returns (decisions 13, 15)
 # Interval funds: the annual report's performance table.

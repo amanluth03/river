@@ -41,9 +41,9 @@ def test_takix_economic_leverage_counts_mandatory_redeemable_preferred(bundle):
 def test_regulatory_leverage(bundle):
     takix = cell(bundle, "leverage_regulatory", "TAKIX")
     assert takix.value == Decimal("352.0") and takix.method == "regex" and takix.confidence == "medium"
-    assert "704.8%" in takix.note and "Implies D/E 0.40x" in takix.note
+    assert "704.8%" in " ".join(takix.normalizations) and "Implies D/E 0.40x" in takix.note
     gbdc = cell(bundle, "leverage_regulatory", "GBDC")
-    assert gbdc.value == Decimal("178.94") and gbdc.method == "ixbrl" and "150%" in gbdc.note
+    assert gbdc.value == Decimal("178.94") and gbdc.method == "ixbrl" and "150%" in " ".join(gbdc.normalizations)
     cclfx = cell(bundle, "leverage_regulatory", "CCLFX")
     assert cclfx.value == Decimal("421.1") and cclfx.method == "computed" and cclfx.confidence == "low"
     kref = cell(bundle, "leverage_regulatory", "KREF")

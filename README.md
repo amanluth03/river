@@ -1,8 +1,10 @@
 # Apex Ridge peer benchmark
 
-Pulls competitor filings from SEC EDGAR, extracts benchmark metrics, checks every number against the filing it came from, and shows the comparison with Apex Ridge's own data on one review page, with an Excel export.
+Pulls competitor filings from SEC EDGAR, extracts benchmark metrics, checks every number against the filing it came from, and shows the comparison with Apex Ridge's own data on one review page, with Excel and Word exports.
 
 **Rule one: a gap beats a wrong number.** A value appears only if its source text was found verbatim in the cached filing and the number was read back out of that text. A computed value (leverage, distribution yield) appears only if every input passed that check. Otherwise the cell says what is missing and why.
+
+**Validation strategy:** how each number is checked, reconciled and scored, cell by cell: [docs/technical_approach.md#validation-strategy](docs/technical_approach.md#validation-strategy).
 
 ## Status (after Window 3)
 
@@ -10,7 +12,7 @@ All nine deck rows are filled for every fund, from the filings, as of Dec 31, 20
 
 | Row | CCLFX | TAKIX | GBDC | KREF |
 |---|---|---|---|---|
-| Net return 1Y / 3Y / 5Y | 1Y "Conflict: PM to choose" (11.78% performance table, 11.58% financial highlights); 3Y 10.69%, 5Y 10.98% (as of 3/31/25) | 6.27% / Not reported by fund / 8.21% | Return on average net assets 9.36% (FY to 9/30/25), "Not directly comparable"; 3Y/5Y not reported | Not applicable (no NAV) |
+| Net return 1Y / 3Y / 5Y | 1Y "Conflict: PM to choose" (11.78% performance table, 11.58% financial highlights); 3Y 10.69%, 5Y 10.98% (as of 3/31/25) | 6.27% / Not reported by fund / 8.21% | Return on average net assets 9.36% (FY to 9/30/25), "Not directly comparable"; 3Y/5Y not reported | Not applicable: no NAV-based return (REIT reports book value) |
 | Management / incentive fee | "Not extracted in v1 · view fee terms ↗" (incentive: annual report states no incentive-fee terms) | Not extracted in v1 · view fee terms ↗ | same | same |
 | NAV per share | $10.77 (9/30/25) | $8.32 | $14.84 | Book value per share $13.04 |
 | Economic leverage (D/E) | 0.31x | 0.40x | 1.25x | 4.00x |
@@ -24,12 +26,14 @@ Gaps are labeled with the reason (for example "Not reported by fund"), never bla
 You need [uv](https://docs.astral.sh/uv/) (one-line install: `curl -LsSf https://astral.sh/uv/install.sh | sh`). It installs the right Python and all dependencies on its own.
 
 ```bash
-git clone <repo-url> && cd rivertakehome
+git clone https://github.com/amanluth03/rivertakehome.git && cd rivertakehome
 cp .env.example .env        # then set SEC_USER_AGENT to your name and email (the SEC requires it)
 uv run benchmark            # opens http://127.0.0.1:8000
 ```
 
-The first run downloads about 300 MB of filings into `data/cache/` (a minute or two). Later runs read the cache and take seconds.
+The command opens your browser at the page; port 8000 must be free. On a fresh clone the page says "No run yet": press **Run** once (Q4 2025 is selected). The first run downloads about 400 MB of filings into `data/cache/` (under a minute on a fast connection). Later runs read the cache and take seconds. Stop the server with Ctrl+C.
+
+No API key is needed: nothing in v1 calls a language model.
 
 Tests: `uv run pytest` (offline; uses small excerpts of real filings in `tests/fixtures/`).
 

@@ -10,10 +10,10 @@ Every quarter, an analyst spends 6 to 8 hours reading four competitors' SEC fili
 
 - **KREF is not a BDC.** It is a commercial mortgage REIT outside the 1940 Act. Its figure is labeled "Book value per share", regulatory leverage shows as not applicable, and it is flagged for the CIO to decide whether it stays.
 - **Golub's return is a different measure.** What looks like a NAV return is a return on average net assets, shown under that name and marked "Not directly comparable".
-- **Cliffwater's annual report contradicts itself.** It gives two 1-year returns for the same year: 11.78% in the performance table and 11.58% in the financial highlights. The cell shows both, each cited, flagged "Conflict: PM to choose". Nothing is selected.
-- **Cliffwater does report a 3-year return** (10.69%), though we had assumed neither interval fund did. Only Carlyle shows "Not reported by fund".
-- **Apex Ridge's own 1-year return** sits a steady 24 bps below what its quarterly returns compound to. The reported figure stays official. The pattern behaves like a fixed annual cost counted in one figure only; fund accountant to confirm.
-- **Amended filings are detected.** Each run checks; it found Cliffwater's two amendments to a 2023 report (neither affects the current table).
+- **Cliffwater's annual report contradicts itself on its 1-year return.** It gives two figures for the same year: 11.78% in the performance table and 11.58% in the financial highlights, and no footnote explains the difference. The cell shows both, each cited, flagged "Conflict: PM to choose". Nothing is selected.
+- **Cliffwater does report a 3-year return** (10.69%), though we had assumed neither interval fund did. Among the interval funds, only Carlyle's 3-year cell reads "Not reported by fund".
+- **Apex Ridge's own 1-year return sits 24 bps below its compounded quarters** (22 to 28 bps in every quarter checked). The reported figure stays official. The steady gap behaves like a fixed annual cost counted in the 1-year figure only; fund accountant to confirm.
+- **Amended filings are detected.** Each run checks. It found four amendments to three older reports, including Cliffwater's two to its September 2023 report. None touches a number in the current table.
 
 **One miss, owned.** Our first version picked Cliffwater's 11.78% and flagged it, making the PM's choice for them and breaking the rule agreed at the start. The system now refuses to choose when a single report contradicts itself.
 
@@ -21,7 +21,7 @@ Every quarter, an analyst spends 6 to 8 hours reading four competitors' SEC fili
 
 A review page where the analyst picks the quarter-end and clicks **Run**. It fetches the SEC filings and fills the deck's layout beside Apex Ridge's own numbers.
 
-1. **Every number proves itself.** Click any cell to see the filing, section and exact source text, linked to the SEC document. Each run re-reads every number from its filing; if it can't confirm it, it doesn't show it.
+1. **Every number proves itself.** Click any cell to see the filing, section and exact source text, linked to the SEC document. Each run re-reads every number from its filing; if it can't confirm it, it doesn't show it. Numbers are also tested against the fund's other figures: NAV roll-forwards, Carlyle's and Golub's debt against their reported asset coverage, KREF's against its own leverage ratio. Of the 36 competitor cells, 19 are verified numbers (8 high confidence, 11 medium, none low). The other 17 are labeled: 4 not reported by the fund, 4 not applicable to KREF, 1 conflict for the PM, and 8 fee cells not extracted in v1.
 2. **Every number has a confidence rating.** Green: confirmed by an independent second source. Amber: one source. Red: a check failed or an assumption was needed; listed for review.
 3. **No silent judgment calls.** Conflicts, lags and calculations are labeled next to the number; gaps say why. A calculation never fills a reported row: Cliffwater reports asset coverage only per credit facility, so its cell says "Not reported by fund" and our 421.1% sits in a note marked computed, low confidence.
 4. **Amendments are impossible to miss.** If a filing we use is amended, the cell itself reads "Superseded by amendment: re-check", in red, on the page, in Excel and Word, and in exceptions. The analyst re-pulls; Dana confirmed flag-only is right for v1.
@@ -37,7 +37,7 @@ Dana named them: a broken citation, after which PMs trust none of it; and any st
 
 ## Tradeoffs we made for the timeline
 
-- **Fee terms are not extracted yet;** an unverified fee is worse than a link. Those cells say "Not extracted in v1" and link into each fund's latest annual report or 10-K, landing within two scrolls of the fee sentence, which Dana accepted.
+- **Fee terms are not extracted yet.** The four management fees are charged on different bases (net assets, managed assets, gross assets, adjusted equity), so a single "1.00%" would mislead. Those cells say "Not extracted in v1" and link to each fund's fee sentence, landing within two scrolls of it, which Dana accepted. Putting fees on a common basis comes next.
 - **Built for these four competitors;** a new fund type takes roughly a day of setup and testing. **PM sign-off** stays outside the tool, as agreed.
 
 ## Rollout and next phase

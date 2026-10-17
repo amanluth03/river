@@ -95,6 +95,9 @@ GBDC_RETURN_NOTE = "Not directly comparable"  # W2: "mark it not directly compar
 NOT_REPORTED_BY_FUND = "Not reported by fund"  # W2: '"not reported" is acceptable, but label it' (decision 15)
 NOT_IN_CLIENT_DATA = "Not in client data"  # W2: '"Not in client data" for our regulatory leverage is fine' (21)
 KREF_NOT_1940_ACT = "Not applicable: KREF is not a 1940 Act fund"  # W2 draft approved by Dana (decision 10)
+# KREF return cells: the short reason in the cell (Aman, final pass: decision 78). KREF-K25 reports book value
+# per share, not NAV, so there is no NAV-based total return; market-price returns are excluded (decision 2).
+KREF_NO_NAV_RETURN = "Not applicable: no NAV-based return (REIT reports book value)"
 FEES_NOT_EXTRACTED = "Not extracted in v1"  # W2: '"Not extracted in v1" with a direct link' (decision 20)
 FEES_IN_NARRATIVE = "Fee terms are in the prospectus narrative"  # W2 fallback wording (decision 20)
 # Window 3 (client, decision 56): when two reported figures disagree inside one filing, show both, choose neither.
@@ -103,7 +106,8 @@ CONFLICT_PM_CHOOSE = "Conflict: PM to choose"
 # figure moves to a note with this label, and the cell says NOT_REPORTED_BY_FUND.
 COMPUTED_LOW_NOTE = "computed, low confidence"
 # What a missing cell shows: the first of these its reason starts with, else the status label below.
-GAP_LABELS = [CONFLICT_PM_CHOOSE, NOT_REPORTED_BY_FUND, FEES_NOT_EXTRACTED, NOT_IN_CLIENT_DATA, KREF_NOT_1940_ACT, "Not applicable"]
+GAP_LABELS = [CONFLICT_PM_CHOOSE, NOT_REPORTED_BY_FUND, FEES_NOT_EXTRACTED, NOT_IN_CLIENT_DATA, KREF_NOT_1940_ACT,
+              KREF_NO_NAV_RETURN, "Not applicable"]
 STATUS_LABELS = {"not_found": "Not found in the filings read", "not_verified": "Not verified against the filing",
                  "fetch_failed": "EDGAR fetch failed", "excluded_by_rule": "Excluded by rule",
                  "not_reported": NOT_REPORTED_BY_FUND, "not_applicable": "Not applicable",

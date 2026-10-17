@@ -69,7 +69,8 @@ function cellHtml(rec, metric, fund) {
   if (rec.status === "conflict") {
     const both = rec.candidates.map((c) =>
       `<span class="cand">${esc(Number(c.value).toFixed(2))}% · ${esc(c.citation.section.split(":")[0])}</span>`).join("");
-    return `<td ${attrs} title="${esc(rec.reason)}">${amendHtml}<span class="conflict">${esc(rec.gap)}</span>${both}</td>`;
+    const lag = rec.lag_quarters ? `<span class="flag">as of ${shortDate(rec.period_end)} · ${rec.lag_quarters}Q lag</span>` : "";
+    return `<td ${attrs} title="${esc(rec.reason)}">${amendHtml}<span class="conflict">${esc(rec.gap)}</span>${both}${lag}</td>`;
   }
   if (rec.status !== "ok") {
     const feeLink = rec.status === "not_extracted" && rec.citation?.url?.startsWith("http")
@@ -327,6 +328,10 @@ function buildPicker() {
   setAsOf(selectedAsOf);
 }
 const closePanel = () => { $("#panel").hidden = true; document.body.classList.remove("panel-open"); };
+$("#export-btn").addEventListener("click", () => exportFile("xlsx"));
+$("#export-word-btn").addEventListener("click", () => exportFile("docx"));
+// A click on the fee link opens the filing; it must not also open the side panel.
+document.addEventListener("click", (e) => { if (e.target.closest?.("a.fee-link")) e.stopPropagation(); }, true);
 $("#run-btn").addEventListener("click", startRun);
 $("#panel-close").addEventListener("click", closePanel);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePanel(); });

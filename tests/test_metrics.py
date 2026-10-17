@@ -161,3 +161,20 @@ def test_fee_cells_show_their_link_and_cclfx_incentive_note(bundle):
     assert cclfx.citation.form == "N-CSR" and cclfx.citation.accession == "0001213900-25-052571"
     assert "#:~:text=" in cclfx.citation.url  # lands on the annual report's fee sentence
     assert all(cell(bundle, "incentive_fee", f).note == "" for f in ("TAKIX", "GBDC", "KREF"))
+
+
+def test_conflict_cell_shows_its_lag(bundle):
+    """Aman, final pass: the CCLFX 1Y conflict cell says "as of 3/31/25 · 3Q lag" like the 3Y/5Y cells."""
+    from benchmark.export_excel import cell_text
+    rec = cell(bundle, "net_return_1y", "CCLFX")
+    assert rec.status == "conflict" and rec.lag_quarters == 3
+    assert "as of 2025-03-31 (3Q lag)" in cell_text(rec)
+
+
+def test_kref_return_cells_say_why(bundle):
+    from benchmark.export_excel import cell_text
+    for metric in ("net_return_1y", "net_return_3y", "net_return_5y"):
+        rec = cell(bundle, metric, "KREF")
+        assert rec.gap == "Not applicable: no NAV-based return (REIT reports book value)"
+        assert cell_text(rec).startswith("Not applicable: no NAV-based return (REIT reports book value)")
+    assert cell(bundle, "leverage_regulatory", "KREF").gap == "Not applicable: KREF is not a 1940 Act fund"

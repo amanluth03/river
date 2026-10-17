@@ -89,3 +89,14 @@ def test_default_as_of_is_q4_2025():
     cfg = client.get("/api/settings").json()
     assert cfg["default_as_of"] == "2025-12-31" and cfg["as_of_choices"][0] == "2025-12-31"
     assert cfg["as_of_choices"] == ["2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31"]
+
+
+def test_every_page_button_is_wired_to_a_handler():
+    """Regression: an edit once deleted the Export buttons' click handlers and no test noticed.
+    Every button id in the page must have an addEventListener in app.js."""
+    import re
+    from pathlib import Path
+    static = Path(__file__).resolve().parent.parent / "benchmark" / "static"
+    html, js = (static / "index.html").read_text(), (static / "app.js").read_text()
+    for button_id in re.findall(r'<button id="([^"]+)"', html):
+        assert re.search(rf'\$\("#{re.escape(button_id)}"\)\.addEventListener', js), button_id

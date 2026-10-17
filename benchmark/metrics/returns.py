@@ -13,7 +13,7 @@ import re
 from decimal import Decimal
 
 from ..config import (DAYS_ONE_YEAR, GBDC_RETURN_CONCEPT, GBDC_RETURN_LABEL, GBDC_RETURN_NOTE,
-                      CONFLICT_PM_CHOOSE, HIGHLIGHTS_RETURN_ROW, NOT_REPORTED_BY_FUND, RETURN_COLUMNS, RETURN_HEADER, RETURN_ROW,
+                      CONFLICT_PM_CHOOSE, HIGHLIGHTS_RETURN_ROW, KREF_NO_NAV_RETURN, NOT_REPORTED_BY_FUND, RETURN_COLUMNS, RETURN_HEADER, RETURN_ROW,
                       RETURN_TABLE_CAPTION, RETURN_TOLERANCE)
 from ..conflicts import resolve
 from ..extract import tables
@@ -130,8 +130,8 @@ def records(data: FundData) -> dict[str, ValueRecord]:
         return _interval(data)
     if data.fund.kind == "bdc":
         return _gbdc(data)
-    reason = ("Not applicable: KREF reports no NAV-based total return (a REIT reports book value, not NAV); "
-              "market-price returns are excluded by the NAV-basis rule.")
+    reason = (f"{KREF_NO_NAV_RETURN}. KREF reports book value per share, not NAV, so it has no NAV-based total "
+              f"return; market-price returns are excluded by the NAV-basis rule.")
     where = data.nav_cell.citation and data.nav_cell.citation.model_copy(update={
         "section": "Whole report: no NAV-based return is reported", "quote": "", "row_label": None,
         "column_header": None, "column_label": None})

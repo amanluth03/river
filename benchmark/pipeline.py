@@ -135,8 +135,9 @@ def _nav_cell(fund, records, as_of, issues) -> ValueRecord:
 
 
 def _apply_lag(record: ValueRecord, as_of: date, issues: list[Issue]):
-    """Every shown competitor value says how far its period is from the as-of date (decision 4)."""
-    if record.status != "ok" or record.period_end is None:
+    """Every shown competitor value, and every conflict (both values share one period), says how far its
+    period is from the as-of date (decision 4)."""
+    if record.status not in ("ok", "conflict") or record.period_end is None:
         return
     record.lag_quarters = config.quarters_between(record.period_end, as_of)
     if record.lag_quarters:

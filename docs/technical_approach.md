@@ -96,7 +96,7 @@ These checks produce the six catches the brief leads with: **KREF is not a BDC**
 - **Cliffwater 1Y is now the PM's call.** Our first version chose 11.78% and flagged it. That made the PM's choice for them and broke the Window 1 rule that conflicts are never resolved silently. Now a disagreement between two figures in one report shows both and selects neither (decision 56).
 - **Cliffwater's computed asset coverage moved from the cell to a labeled note.** The cell reads "Not reported by fund". The 421.1%, computed from balance-sheet carrying values, appears only as "computed, low confidence", with inputs and formula in the citation panel (decision 57).
 
-**Tests:** 163 automated tests, all passing, run offline on extracts cut verbatim from the real filings. Among them: every shown value passes the gate again, no cell is blank, every competitor cell links to a filing, Word cells match Excel cells, and each fee link targets text found once in its document.
+**Tests:** 166 automated tests, all passing, run offline on extracts cut verbatim from the real filings. Among them: every shown value passes the gate again, no cell is blank, every competitor cell links to a filing, Word cells match Excel cells, and each fee link targets text found once in its document.
 
 ## Key decisions and normalizations
 

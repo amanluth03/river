@@ -13,8 +13,8 @@
       <p id="run-info" class="muted">No run yet.</p>
     </div>
     <div class="actions">
-      <label for="as-of" class="muted">As of</label>
-      <select id="as-of"></select>
+      <span class="muted">As of</span>
+      <div id="as-of" class="segmented" role="radiogroup" aria-label="As-of quarter-end"></div>
       <button id="run-btn" class="primary">Run</button>
       <a id="export-btn" class="button" href="/api/export.xlsx">Export to Excel</a>
     </div>
@@ -27,13 +27,14 @@
     <button role="tab" data-tab="trend" aria-selected="false">NAV trend</button>
   </nav>
 
-  <main>
+  <main id="main">
     <section id="tab-table" class="tab">
-      <table id="bench" class="bench"></table>
+      <div class="table-scroll"><table id="bench" class="bench"></table></div>
       <p class="legend muted">
         <span class="dot high"></span>High <span class="dot medium"></span>Medium <span class="dot low"></span>Low
-        &nbsp;·&nbsp; Click any value to see its source. &nbsp;·&nbsp; "—" means no verified value; click for the reason.
+        &nbsp;·&nbsp; Click any cell to see its source and filing link. Missing values say why.
       </p>
+      <ol id="footnotes" class="footnotes muted"></ol>
     </section>
 
     <section id="tab-exceptions" class="tab" hidden>
@@ -43,7 +44,7 @@
     <section id="tab-trend" class="tab" hidden>
       <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
       <p class="legend muted">Points appear only where a filing reports NAV. CCLFX and TAKIX report semi-annually, so their
-        other quarters are gaps, not estimates. KREF shows book value per share (it does not report NAV).</p>
+        other quarters are gaps, not estimates. KREF shows Book value per share (it does not report NAV).</p>
       <table id="trend-table" class="bench small"></table>
     </section>
   </main>

@@ -3,7 +3,9 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
+
+from .config import GAP_LABELS, STATUS_LABELS
 
 Status = Literal[
     "ok",  # verified and shown
@@ -11,7 +13,7 @@ Status = Literal[
     "not_verified",  # found, but failed the verification gate
     "not_reported",  # the fund doesn't report this
     "not_applicable",  # the metric doesn't apply to this fund type
-    "not_implemented",  # extraction not built yet (milestone 2)
+    "not_extracted",  # v1 does not extract this (fees); the record links to where the terms are
     "excluded_by_rule",  # e.g. market-price return, excluded by the NAV-basis rule
     "fetch_failed",  # EDGAR could not be reached for this fund
 ]
@@ -75,6 +77,8 @@ class ValueRecord(BaseModel):
     resolution: str = ""
     flags: list[str] = Field(default_factory=list)
     normalizations: list[str] = Field(default_factory=list)
+    inputs: list[Candidate] = Field(default_factory=list)  # computed values: every verified input, each cited
+    check: str = ""  # an independent comparison that was run on a computed value, and its result
 
     @model_validator(mode="after")
     def _status_matches_value(self):
@@ -83,9 +87,24 @@ class ValueRecord(BaseModel):
                 raise ValueError("status 'ok' needs a value")
             if self.citation is None:
                 raise ValueError("a shown value must carry a citation")
+            if self.method == "computed" and not self.inputs:
+                raise ValueError("a computed value must list its inputs")
+            if self.method == "computed" and not all(c.verified for c in self.inputs):
+                raise ValueError("a computed value may only use verified inputs")
         elif self.value is not None:
             raise ValueError("a missing value must not carry a number")
         return self
+
+    @computed_field
+    @property
+    def gap(self) -> str:
+        """What a missing cell says, never blank (decision 15): the client's wording if it applies."""
+        if self.value is not None:
+            return ""
+        for label in GAP_LABELS:
+            if self.reason.startswith(label):
+                return label
+        return STATUS_LABELS.get(self.status, self.status)
 
     def display(self) -> str:
         if self.value is None:
@@ -100,7 +119,8 @@ class ValueRecord(BaseModel):
 class Issue(BaseModel):
     """One line in the Exceptions list."""
     kind: Literal["conflict", "missing", "lag", "computed", "not_like_for_like",
-                  "client_data", "peer_question", "data_quality", "fetch"]
+                  "client_data", "peer_question", "data_quality", "fetch", "amendment",
+                  "not_comparable", "check_failed"]
     fund: str
     metric: str | None = None
     message: str
@@ -117,3 +137,4 @@ class RunBundle(BaseModel):
     trend: dict[str, list[ValueRecord]]  # fund -> NAV points in the window
     issues: list[Issue]
     filings: list[dict] = Field(default_factory=list)  # every filing used, with hash
+    footnotes: list[str] = Field(default_factory=list)  # shown under the table and in Excel

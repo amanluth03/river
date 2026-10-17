@@ -7,21 +7,8 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from .config import quarter_end
+from .config import APEX_COLUMNS as COLUMNS, APEX_FUND as FUND, quarter_end
 from .records import Citation, Issue, ValueRecord
-
-# deck metric -> (CSV column, unit)
-COLUMNS = {
-    "net_return_1y": ("net_return_1y_pct", "pct"),
-    "net_return_3y": ("net_return_3y_pct", "pct"),
-    "net_return_5y": ("net_return_5y_pct", "pct"),
-    "management_fee": ("management_fee_pct", "pct"),
-    "incentive_fee": ("incentive_fee_pct", "pct"),
-    "nav_per_share": ("nav_per_share_usd", "usd"),
-    "leverage_economic": ("leverage_ratio_dte", "ratio"),
-    "distribution_yield": ("distribution_yield_pct", "pct"),
-}
-FUND = "Apex Ridge"
 
 
 def _quarter_date(label: str) -> date:

@@ -12,6 +12,7 @@ from decimal import Decimal
 
 from . import textnorm
 from .cache import Cache
+from .config import HEADER_WINDOW
 from .records import Candidate
 
 # A number not glued to a letter, %, digit, dot or comma on its left. That skips footnote
@@ -48,7 +49,6 @@ def _ixbrl_fact_text(raw: bytes, fact_id: str, concept: str | None) -> str | Non
     return textnorm.normalize(re.sub(rb"<[^>]+>", b"", match.group(1)).decode("utf-8", "ignore"))
 
 
-HEADER_WINDOW = 6000  # how far before the quote a column header may sit (characters of normalized text)
 _FULL = re.compile(r"(January|February|March|April|May|June|July|August|September|October|November|December)"
                    r"\s+(\d{1,2}),?\s+(\d{4})")
 _MD = re.compile(r"(January|February|March|April|May|June|July|August|September|October|November|December)"

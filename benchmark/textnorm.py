@@ -10,10 +10,7 @@ from pathlib import Path
 
 from lxml import etree, html
 
-# Tags that end a visual unit. We insert a space there so "$" and "8.32" in two
-# table cells become "$ 8.32", not "$8.32".
-BLOCK_TAGS = {"td", "th", "tr", "p", "div", "br", "li", "table", "tbody", "thead",
-              "h1", "h2", "h3", "h4", "h5", "h6"}
+from .config import BLOCK_TAGS
 
 _CHAR_MAP = {
     "\xa0": " ", " ": " ", " ": " ", "​": "", "﻿": "",

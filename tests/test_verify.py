@@ -95,3 +95,20 @@ def test_gate_records_which_match_of_the_row_label_holds_the_value(tmp_path):
                      period_end=date(2025, 12, 31), method="table", citation=cit, column_index=0)
     assert verify.check(cand, c)[0]
     assert cand.citation.find_match == 2 and cand.citation.find_total == 2
+
+
+def test_header_window_covers_every_row_we_read(tmp_path):
+    """config.HEADER_WINDOW must exceed the real header-to-row distance of every table value we show."""
+    from benchmark import textnorm
+    from benchmark.config import HEADER_WINDOW
+    from tests.test_pipeline import make_bundle
+
+    bundle, cache = make_bundle(tmp_path)
+    records = [r for row in bundle.table.values() for r in row.values() if r.status == "ok"]
+    cands = [c for r in records for c in (r.inputs or r.candidates) if c.method == "table" and c.verified]
+    distances = []
+    for c in cands:
+        doc = textnorm.document_text(cache.path(c.citation.cik, c.citation.accession, c.citation.document))
+        part = c.citation.column_header.split("|")[0].strip().removeprefix("Year Ended ").rstrip(",")
+        distances.append(c.citation.char_offset - doc.rfind(part, 0, c.citation.char_offset))
+    assert cands and max(distances) < HEADER_WINDOW, max(distances)

@@ -8,6 +8,8 @@ def score(record: ValueRecord, verified: list[Candidate], chosen: Candidate) -> 
     if chosen.reconciliation_ok is False:
         return "low", f"Verified in the filing, but the reconciliation failed: {chosen.reconciliation}"
     if record.method in ("regex", "llm"):
+        if chosen.reconciliation_ok:
+            return "medium", f"Read from narrative text and confirmed by a structured source: {chosen.reconciliation}"
         return "low", "Read from narrative text only."
     if record.method == "computed":
         return "low", "Computed with a change of period basis."

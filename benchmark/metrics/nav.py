@@ -9,23 +9,14 @@ from datetime import date
 from decimal import Decimal
 from typing import Callable
 
-from ..config import Fund
+from ..config import (BOOK_VALUE, COMMON_EQUITY, KREF_BOOK_VALUE_LABEL, NAV_BEGIN, NAV_CONCEPT, NAV_END,
+                      PER_SHARE_TOLERANCE as TOLERANCE, SCALE_WORDS, TOTAL_DIST, TOTAL_OPS, TOTAL_SHARES, Fund)
 from ..edgar import archive_url
 from ..extract import ixbrl, tables
 from ..filings import Filing
 from ..records import Candidate, Citation
 
-NAV_END = r"^Net asset value, end of (the )?(period|year)"
-NAV_BEGIN = r"^Net asset value, beginning of (the )?(period|year)"
-TOTAL_OPS = r"^Total (income )?from investment operations"
-TOTAL_DIST = r"^Total (dividends and/or )?distributions"
-BOOK_VALUE = r"^Book value per (common )?share"
-COMMON_EQUITY = r"^Common stockholders'? equity"
-TOTAL_SHARES = r"^Total shares outstanding"
-NAV_CONCEPT = "us-gaap:NetAssetValuePerShare"
-TOLERANCE = Decimal("0.01")
-
-KREF_LABEL = "Book value per share (KREF does not report NAV)"
+KREF_LABEL = KREF_BOOK_VALUE_LABEL
 
 
 def _citation(fund: Fund, filing: Filing, section: str, quote: str, row_label: str, period: date, **extra) -> Citation:
@@ -53,11 +44,16 @@ def _book_value_check(hit, i) -> tuple[str | None, bool | None]:
     shares = tables.row_in_same_table(hit, TOTAL_SHARES)
     if not (equity and shares) or shares.values[i] == 0:
         return None, None
-    # The table states equity in thousands of dollars and shares as a count.
-    computed = (equity.values[i] * 1000 / shares.values[i]).quantize(TOLERANCE)
+    # The scale of the equity amount comes from the table's own caption, e.g. KREF's
+    # "(amounts in thousands, except share and per share data)". No caption, no check.
+    words = [w for w in SCALE_WORDS if w in hit.heading.lower()]
+    if len(words) != 1:
+        return None, None
+    scale = SCALE_WORDS[words[0]]
+    computed = (equity.values[i] * scale / shares.values[i]).quantize(TOLERANCE)
     ok = abs(computed - hit.values[i]) <= TOLERANCE
-    return (f"Common equity ${equity.values[i]:,}k / {shares.values[i]:,} shares = {computed} "
-            f"vs reported {hit.values[i]} ({'ok' if ok else 'MISMATCH'})"), ok
+    return (f"Common equity {equity.values[i]:,} ({words[0]}, per the table caption) / {shares.values[i]:,} "
+            f"shares = {computed} vs reported {hit.values[i]} ({'ok' if ok else 'MISMATCH'})"), ok
 
 
 def _from_table(fund, filing, path, window, label_regex, class_label, section, check) -> list[Candidate]:

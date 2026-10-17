@@ -2,16 +2,22 @@
 
 Pulls competitor filings from SEC EDGAR, extracts benchmark metrics, checks every number against the filing it came from, and shows the comparison with Apex Ridge's own data on one review page, with an Excel export.
 
-**Rule one: a gap beats a wrong number.** A value appears only if its source text was found verbatim in the cached filing and the number was read back out of that text. Otherwise the cell shows "—" and the reason.
+**Rule one: a gap beats a wrong number.** A value appears only if its source text was found verbatim in the cached filing and the number was read back out of that text. A computed value (leverage, distribution yield) appears only if every input passed that check. Otherwise the cell says what is missing and why.
 
-## Status (milestone 1, for Window 2)
+## Status (milestone 2, for Window 3)
 
-| Metric | Apex Ridge | CCLFX | TAKIX | GBDC | KREF |
-|---|---|---|---|---|---|
-| NAV per share (latest + 8-quarter trend) | client CSV | done | done | done | done (book value) |
-| Returns, fees, leverage, distribution yield | client CSV | pending | pending | pending | pending |
+All nine deck rows are filled for every fund, from the filings, as of Dec 31, 2025:
 
-Pending cells say "pending" in the app. They are never filled with estimates.
+| Row | CCLFX | TAKIX | GBDC | KREF |
+|---|---|---|---|---|
+| Net return 1Y / 3Y / 5Y | 11.78 / 10.69 / 10.98% (as of 3/31/25) | 6.27% / Not reported by fund / 8.21% | Return on average net assets 9.36% (FY to 9/30/25), "Not directly comparable"; 3Y/5Y not reported | Not applicable (no NAV) |
+| Management / incentive fee | Not extracted in v1 (links to the fee sentence) | same | same | same |
+| NAV per share | $10.77 (9/30/25) | $8.32 | $14.84 | Book value per share $13.04 |
+| Economic leverage (D/E) | 0.31x | 0.40x | 1.25x | 4.00x |
+| Regulatory leverage (asset coverage) | 421.1% (computed; fund reports per facility) | 352.0% | 178.94% | Not applicable: not a 1940 Act fund |
+| Distribution yield (TTM ÷ NAV) | 10.58% | 9.01% | 10.51% | 7.67% (on book value) |
+
+Gaps are labeled with the reason (for example "Not reported by fund"), never blank, and every cell links to its filing. `context/build_log.md` has the hand-check link for each value; `docs/CODE_TOUR.md` traces each one through the code.
 
 ## Run it
 
@@ -43,7 +49,9 @@ EDGAR ──> cache (by accession, SHA-256) ──> extract candidates ──> v
                                                 value in quote, XBRL id)    later filing wins, both shown)
 ```
 
-- **Sources:** inline-XBRL tags where the filing has them (GBDC NAV), otherwise the labeled table row (interval-fund Class I financial highlights, KREF book value table). Period dates come from each filing, not EDGAR's company metadata.
+- **Sources:** inline-XBRL tags where the filing has them (GBDC), otherwise the labeled table row (Class I financial highlights, balance sheets, performance tables, KREF's statements), and one narrative sentence (TAKIX asset coverage), always quoted verbatim. Period dates and period lengths come from each filing, not EDGAR's company metadata.
+- **Computed values** (economic leverage, distribution yield, CCLFX asset coverage) list every input with its own citation; the formula is shown next to the value.
+- **Amendments:** each run checks every fund's EDGAR index; a value whose filing was later amended is flagged "Superseded by amendment: re-check".
 - **Confidence:** High = verified, plus a second independent check (another filing shows the same value, or a reconciliation holds, such as the NAV bridge or equity ÷ shares). Medium = verified, single source. Low = conflict, failed reconciliation, narrative-only or computed with an assumption.
 - **Apex Ridge data** is shown as given and cited as client data. Its checks (for example, quarterly returns compounding to 22 to 28 bps above the reported 1Y) appear under Exceptions.
 
@@ -51,14 +59,15 @@ EDGAR ──> cache (by accession, SHA-256) ──> extract candidates ──> v
 
 ```
 benchmark/
-  config.py        funds, as-of window, paths
+  config.py        EVERY constant, each with its source (row labels, tags, tolerances, client wording)
   records.py       ValueRecord / Citation / Candidate / Issue / RunBundle
   edgar.py         EDGAR client (User-Agent, pacing, retries)
   cache.py         filing cache + SHA-256 manifest
   filings.py       which filings exist and the period each covers
   textnorm.py      one HTML-to-text routine shared by extractors and the verifier
   extract/         ixbrl.py (tagged facts), tables.py (labeled table rows)
-  metrics/nav.py   NAV per share candidates + reconciliations
+  metrics/         nav, leverage, distributions, returns, fees (+ common helpers)
+  amendments.py    amendment check against the EDGAR index
   verify.py        the verification gate
   conflicts.py     choosing between sources, never silently
   confidence.py    High / Medium / Low with a reason
@@ -67,12 +76,14 @@ benchmark/
   export_excel.py  Excel workbook
   app.py, static/  the review page
 context/           build log, decision log, client notes
-docs/              spec and plan (technical approach and solution brief to follow)
+docs/              CODE_TOUR.md (pipeline map, value paths, constants, failure modes)
+tests/             offline tests on fixtures cut from the real filings (tests/cut_fixtures.py)
 ```
 
-## Known limitations (milestone 1)
+## Known limitations (v1)
 
-- Only NAV per share is extracted for competitors so far.
-- HTML filings have no fixed page numbers. Citations give the section, row, column, character offset and a link that opens the filing at that row (works in Chrome, Edge and Safari).
-- Table parsing is tuned to these four funds' layouts. When a layout doesn't match, the value shows as missing, never mis-mapped.
-- Only filings whose period falls in the 8-quarter window are read, so a value from the latest filing can't yet be cross-checked against a later one (GBDC 12/31/25 is Medium for that reason).
+- Fee terms are not extracted; the cell links to the sentence that states them (decision 45).
+- HTML filings have no fixed page numbers. Citations give the section, row, column header, character offset and a find hint ("search the row label: match 2 of 7").
+- Table parsing is tuned to these four funds' layouts and row labels (all in `config.py`). When a layout or label changes, the value shows as missing, never mis-mapped.
+- Only filings whose period falls in the 8-quarter window are read.
+- Amendments are flagged, not re-pulled automatically.

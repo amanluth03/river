@@ -86,3 +86,36 @@ Tip: links starting `sec.gov/ix?doc=` open the SEC inline-XBRL viewer. Use Ctrl+
 - **DONE** Fresh code review: 0 Critical, 5 Important (all latent: none changed a current value), 7 Minor deferred. A security check flagged DNS rebinding on the local server. All 6 fixed with failing-first tests; 72 tests pass; live rerun gives the same 32 NAV points.
 - **DONE** Gate now also re-derives each table value's period from its column header and confirms that header sits above the row. Citations carry a find hint (TAKIX $8.32: "Net asset value, end of period", match 2 of 7 = the Class I table).
 - **FIND** The "open at this row" link would have opened TAKIX's Class A table ($8.28), not Class I ($8.32). Removed (decision 26 revised).
+
+## 2026-10-16 — Milestone 2: leverage, distribution yield, returns, amendments, protection, fee links
+
+- **DONE** Built in the agreed order: leverage (two rows), distribution yield (TTM ÷ NAV), returns with labels, amendment check, sheet protection, fees fallback (sentence-level link). All constants moved to `benchmark/config.py` with sources (decision 35). 104 tests pass offline; live run ~17 s on cached filings.
+- **DONE** Fixtures are now cut verbatim from the cached filings by `tests/cut_fixtures.py` (decision 50). The old KREF fixture's caption was hand-typed; the regenerated one has the real "(amounts in thousands, except share and per share data)", which the KREF reconciliation now reads instead of assuming `* 1000`.
+- **NOTE (honest TDD gap)** The metric tests in `tests/test_metrics.py` were written after the code and passed first time; they are regression tests on real values, not failing-first. The parser-fix tests in `tests/test_units.py` reproduce bugs found live.
+- **FIND** CCLFX reports a 3Y return (10.69% as of 3/31/25). Only TAKIX lacks one (decision 40).
+- **FIND** CCLFX FY to 3/31/25: performance table 1Y 11.78% vs Financial Highlights total return 11.58% (same report). Shown 11.78%, Low, both values visible (decision 41). Question for Dana.
+- **FIND** CCLFX reports asset coverage per facility only (Senior Credit Facility 10,802, Senior Notes 6,202, Secured Borrowings 63,977 per $1,000). Fund-level 421.1% is computed and Low (decision 36).
+- **FIND** TAKIX Note 7: coverage 704.8% excluding preferred, 352.0% including. Implied D/E 0.40x matches the balance sheet 0.40x.
+- **FIND** GBDC coverage 178.94% implies 1.27x vs 1.25x from the balance sheet (coverage uses principal; within 0.05x).
+- **FIND** KREF's own ratios: D/E 2.2x (recourse only, net of cash), total leverage 3.9x (net of cash). Our gross 4.00x recomputes to 3.93x net of cash.
+- **FIND (bugs fixed)** (1) The XPath prefilter kept a trailing `$`, so `^Net Assets$` matched nothing. (2) Joined header rows made "Year Ended December 31," + "2025" look like a full date, so KREF's income statement was refused. (3) A header naming two periods sharing "December 31" would have dated a 3-month column as a fiscal year; now refused (decision 49).
+- **ASSUME** GBDC and KREF distributions are "declared" per share (what they report); interval funds' are distributions in the highlights.
+
+### Live values (as of 2025-12-31) — hand-check links
+
+| Fund | Row | Value | Source to check |
+|---|---|---|---|
+| CCLFX | Economic D/E | 0.31x | [N-CSRS 0001213900-25-118573](https://www.sec.gov/Archives/edgar/data/1735964/000121390025118573/ea0264761-01_ncsrs.htm), Statement of Assets and Liabilities: senior notes 6,093,192,507 + credit facility 3,212,500,000 + secured borrowings 500,000,000 ÷ net assets 31,488,743,589 |
+| CCLFX | Asset coverage | 421.1% (computed) | same table |
+| CCLFX | Distribution yield | 10.58% | same filing, Class I highlights "Total Distributions to shareholders" (0.54) and (0.90); [N-CSRS 0001213900-24-106851](https://www.sec.gov/Archives/edgar/data/1735964/000121390024106851/ea0221175-01_ncsrs.htm) (0.30); NAV 10.77 |
+| CCLFX | 1Y / 3Y / 5Y | 11.78 / 10.69 / 10.98% | [N-CSR 0001213900-25-052571](https://www.sec.gov/Archives/edgar/data/1735964/000121390025052571/ea0241342-01_ncsr.htm), "Average Annual Total Returns as of March 31, 2025" |
+| TAKIX | Economic D/E | 0.40x | [N-CSR 0001725472-26-000003](https://www.sec.gov/Archives/edgar/data/1725472/000172547226000003/ctac-20251231.htm), balance sheet: 920,159 + 946,446 + 27,686 ÷ 4,782,841 |
+| TAKIX | Asset coverage | 352.0% | same filing, Note 7 "asset coverage (inclusive of preferred equity shares) was 352.0%" |
+| TAKIX | Distribution yield | 9.01% | same filing, Class I "Total Dividends and/or distributions to shareholders" (0.75) ÷ 8.32 |
+| TAKIX | 1Y / 5Y | 6.27 / 8.21% | same filing, "Average Annual Total Returns through December 31, 2025", I Share |
+| GBDC | Economic D/E | 1.25x | [10-Q 0001476765-26-000012](https://www.sec.gov/Archives/edgar/data/1476765/000147676526000012/gbdc-20251231.htm), "Debt $ 4,903,076" ÷ "Total Net Assets 3,909,154" |
+| GBDC | Asset coverage | 178.94% | same filing, "Asset coverage ratio(7) 178.94%" |
+| GBDC | Distribution yield | 10.51% | same 10-Q (0.39, 0.48) + [10-K 0001476765-25-000096](https://www.sec.gov/Archives/edgar/data/1476765/000147676525000096/gbdc-20250930.htm) FY25 1.65; NAV 14.84 |
+| GBDC | Return on average net assets | 9.36% (FY to 9/30/25) | same 10-K, "Total return based on average net asset value(6)" |
+| KREF | Economic D/E | 4.00x | [10-K 0001628280-26-005092](https://www.sec.gov/Archives/edgar/data/1631596/000162828026005092/kref-20251231.htm), balance sheet: 2,862,689 + 1,198,332 + 632,516 ÷ 1,172,550 |
+| KREF | Distribution yield | 7.67% | same filing, "Dividends Declared per Share of Common Stock $ 1.00" ÷ book value 13.04 |

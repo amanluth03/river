@@ -18,21 +18,24 @@ class Fact:
     value: Decimal  # the true value (scale and sign applied)
     shown: Decimal  # the number as printed on the page
     period_end: date
+    period_start: date | None = None  # None for an instant (balance-sheet date); set for a duration
     dims: dict = field(default_factory=dict)
     fact_id: str = ""
     row_quote: str = ""  # the table row (or paragraph) the number sits in
     row_label: str = ""
 
 
-def _contexts(root) -> dict[str, tuple[date, dict]]:
+def _contexts(root) -> dict[str, tuple[date, date | None, dict]]:
     contexts = {}
     for ctx in root.xpath("//*[name()='xbrli:context']"):
         end = ctx.xpath(".//*[name()='xbrli:instant' or name()='xbrli:enddate']/text()")
         if not end:
             continue
+        start = ctx.xpath(".//*[name()='xbrli:startdate']/text()")
         dims = {m.get("dimension"): textnorm.normalize(m.text or "")
                 for m in ctx.xpath(".//*[name()='xbrldi:explicitmember']")}
-        contexts[ctx.get("id")] = (date.fromisoformat(end[0].strip()), dims)
+        contexts[ctx.get("id")] = (date.fromisoformat(end[0].strip()),
+                                   date.fromisoformat(start[0].strip()) if start else None, dims)
     return contexts
 
 
@@ -62,6 +65,7 @@ def facts(path: Path, concept: str) -> list[Fact]:
         if el.get("sign") == "-":
             value = -value
         quote, label = _container_text(el)
-        found.append(Fact(concept=concept, value=value, shown=shown, period_end=ctx[0], dims=ctx[1],
+        found.append(Fact(concept=concept, value=value, shown=shown, period_end=ctx[0], period_start=ctx[1],
+                          dims=ctx[2],
                           fact_id=el.get("id", ""), row_quote=quote, row_label=label))
     return found

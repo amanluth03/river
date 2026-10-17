@@ -11,8 +11,9 @@
   --panel: #ffffff;
 }
 * { box-sizing: border-box; }
+html { background: var(--bg); }
 body {
-  margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+  margin: 0; min-height: 100vh; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
   font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 h1 { font-size: 20px; margin: 0 0 2px; font-weight: 600; }
@@ -65,7 +66,7 @@ button:disabled { opacity: .5; cursor: default; }
 .chart-wrap { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 12px; height: 360px; margin-bottom: 8px; }
 
 .panel {
-  position: fixed; top: 0; right: 0; width: min(520px, 100vw); height: 100vh; overflow-y: auto;
+  position: fixed; top: 0; bottom: 0; right: 0; width: min(520px, 100vw); overflow-y: auto;
   background: var(--panel); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgba(0,0,0,.06);
   padding: 24px; z-index: 10;
 }
@@ -80,3 +81,23 @@ button:disabled { opacity: .5; cursor: default; }
 .panel h4 { margin: 18px 0 4px; font-size: 13px; }
 .panel .reason { font-size: 13px; }
 .panel ul { padding-left: 18px; margin: 4px 0; font-size: 13px; }
+.bench .label { display: block; font-size: 11px; color: var(--muted); text-transform: none; }
+.bench .gap { color: #8a6d3b; font-size: 12px; white-space: normal; }
+.bench td.val { white-space: normal; min-width: 120px; }
+.bench .flag { display: block; font-size: 11px; color: var(--low); }
+.footnotes { font-size: 12px; margin: 12px 0 0; padding-left: 18px; }
+.footnotes li { margin: 2px 0; }
+.panel ol.inputs { padding-left: 18px; font-size: 13px; }
+.panel ol.inputs li { margin-bottom: 10px; }
+.panel ol.inputs blockquote { margin-top: 4px; }
+
+/* As-of picker: compact segmented buttons instead of a native dropdown. */
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.segmented button { border: none; border-radius: 0; padding: 6px 10px; font-size: 13px; background: #fff; }
+.segmented button + button { border-left: 1px solid var(--line); }
+.segmented button[aria-checked="true"] { background: var(--accent); color: #fff; }
+
+/* The side panel sits beside the content, not over it, and its last line is never cut off. */
+body.panel-open { padding-right: min(552px, 100vw); }
+.panel { padding-bottom: 48px; }
+.table-scroll { overflow-x: auto; }

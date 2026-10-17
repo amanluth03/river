@@ -8,31 +8,18 @@ from typing import Callable
 
 from dotenv import load_dotenv
 
-from . import apex, config, filings, verify
+from . import amendments, apex, config, filings, verify
 from .cache import Cache
+from .config import APEX_GAP_NOTE, NOT_IN_CLIENT_DATA, ROWS
 from .conflicts import resolve
 from .edgar import Edgar, EdgarError, archive_url
-from .metrics import nav
+from .metrics import distributions, fees, leverage, nav, returns
+from .metrics.common import FundData, missing, searched_citation
 from .records import Issue, RunBundle, ValueRecord
-
-ROWS = [
-    ("net_return_1y", "Net return, trailing 1Y (ann.)"),
-    ("net_return_3y", "Net return, trailing 3Y (ann.)"),
-    ("net_return_5y", "Net return, trailing 5Y (ann.)"),
-    ("management_fee", "Management fee"),
-    ("incentive_fee", "Incentive fee (hurdle)"),
-    ("nav_per_share", "NAV per share"),
-    ("leverage_economic", "Leverage, economic (D/E)"),
-    ("leverage_regulatory", "Leverage, regulatory (asset coverage)"),
-    ("distribution_yield", "Distribution yield (ann.)"),
-]
-UNITS = {"nav_per_share": "usd", "leverage_economic": "ratio", "leverage_regulatory": "pct"}
-ANNUAL_FORM = {"interval": "N-CSR", "bdc": "10-K", "mreit": "10-K"}
 
 
 def _missing(fund: str, metric: str, status: str, reason: str, period: date | None = None) -> ValueRecord:
-    return ValueRecord(fund=fund, metric=metric, value=None, unit=UNITS.get(metric, "pct"), status=status,
-                       reason=reason, period_end=period)
+    return missing(fund, metric, status, reason, period)
 
 
 def _code_version() -> str:
@@ -43,7 +30,7 @@ def _code_version() -> str:
         return "unknown"
 
 
-def _apex_column(as_of: date, issues: list[Issue]) -> dict[str, ValueRecord]:
+def _apex_column(as_of: date, issues: list[Issue]):
     by_quarter, apex_issues = apex.load(config.APEX_CSV)
     issues.extend(apex_issues)
     current = by_quarter.get(as_of, {})
@@ -52,22 +39,35 @@ def _apex_column(as_of: date, issues: list[Issue]) -> dict[str, ValueRecord]:
         if metric in current:
             column[metric] = current[metric]
         elif metric == "leverage_regulatory":
-            column[metric] = _missing(apex.FUND, metric, "not_reported", "Client data provides D/E only.")
+            column[metric] = _missing(apex.FUND, metric, "not_reported", NOT_IN_CLIENT_DATA)
         else:
             column[metric] = _missing(apex.FUND, metric, "not_found", f"No row for {as_of} in the client CSV.")
+    gaps = [i.details["gap_bps"] for i in apex_issues if i.metric == "net_return_1y" and "gap_bps" in i.details]
+    if gaps and column["net_return_1y"].status == "ok":
+        note = APEX_GAP_NOTE.format(gap=round(sum(gaps) / len(gaps)))
+        column["net_return_1y"].note = "See footnote: 1Y vs compounded quarters."
+        column["net_return_1y"].normalizations.append(note)
+        issues.append(Issue(kind="client_data", fund=apex.FUND, metric="net_return_1y", message=note,
+                            details={"gaps_bps": gaps}))
     return column, by_quarter
 
 
-def _fund_nav(fund, edgar, cache, as_of, window, issues, used, progress):
-    """NAV records for every period with data, keyed by period end."""
-    subs = edgar.submissions(fund.cik)
+def _filings_in_window(fund, subs, as_of, window, issues):
     # A filing whose period ends before the window can't contain a point inside it, so skip the download.
     found = [f for f in filings.list_filings(subs, fund.forms, since=window[0]) if window[0] <= f.period <= as_of]
-    mismatch = filings.fiscal_year_end_mismatch(subs, found, ANNUAL_FORM[fund.kind])
+    mismatch = filings.fiscal_year_end_mismatch(subs, found, fund.annual_form)
     if mismatch:
         issues.append(Issue(kind="data_quality", fund=fund.ticker, message=mismatch))
+    return found
+
+
+def _fetcher(fund, edgar, cache, issues, used, progress):
+    """fetch(filing) -> cached path; records every filing read, once, with its hash."""
+    done = {}
 
     def fetch(f):
+        if f.accession in done:
+            return done[f.accession]
         progress(f"Fetching {fund.ticker} {f.form} for period {f.period}…")
         path = edgar.fetch(fund.cik, f.accession, f.primary_doc)
         stated = filings.document_period(path)
@@ -79,8 +79,13 @@ def _fund_nav(fund, edgar, cache, as_of, window, issues, used, progress):
                      "filed": str(f.filing_date), "document": f.primary_doc,
                      "url": archive_url(fund.cik, f.accession, f.primary_doc),
                      "sha256": cache.sha256(fund.cik, f.accession, f.primary_doc)})
+        done[f.accession] = path
         return path
+    return fetch
 
+
+def _fund_nav(fund, found, fetch, cache, as_of, window, progress):
+    """NAV records for every period with data, keyed by period end."""
     cands = nav.candidates(fund, found, fetch=fetch, window=(window[0], as_of))
     progress(f"Verifying {len(cands)} {fund.ticker} values against their filings…")
     for c in cands:
@@ -121,23 +126,74 @@ def _nav_cell(fund, records, as_of, issues) -> ValueRecord:
         reason = failed.reason if failed else "No NAV table or tag found in the filings."
         issues.append(Issue(kind="missing", fund=fund.ticker, metric="nav_per_share", message=reason))
         return _missing(fund.ticker, "nav_per_share", failed.status if failed else "not_found", reason)
-    cell = max(shown, key=lambda r: r.period_end).model_copy(deep=True)
-    cell.lag_quarters = config.quarters_between(cell.period_end, as_of)
-    if cell.lag_quarters:
-        cell.flags.append("lagged")
-        issues.append(Issue(kind="lag", fund=fund.ticker, metric="nav_per_share", message=(
-            f"Latest NAV is as of {cell.period_end} ({cell.lag_quarters}Q before {as_of}).")))
-    return cell
+    return max(shown, key=lambda r: r.period_end).model_copy(deep=True)
 
 
-def _record_issues(fund, records, issues):
-    for r in records.values():
+def _apply_lag(record: ValueRecord, as_of: date, issues: list[Issue]):
+    """Every shown competitor value says how far its period is from the as-of date (decision 4)."""
+    if record.status != "ok" or record.period_end is None:
+        return
+    record.lag_quarters = config.quarters_between(record.period_end, as_of)
+    if record.lag_quarters:
+        record.flags.append("lagged")
+        issues.append(Issue(kind="lag", fund=record.fund, metric=record.metric, message=(
+            f"Latest figure is as of {record.period_end} ({record.lag_quarters}Q before {as_of}).")))
+
+
+def _record_issues(records: list[ValueRecord], issues: list[Issue]):
+    for r in records:
         if "conflict" in r.flags or "pm_review" in r.flags:
-            issues.append(Issue(kind="conflict", fund=fund.ticker, metric=r.metric,
-                                message=f"{r.period_end}: {r.resolution}"))
+            issues.append(Issue(kind="conflict", fund=r.fund, metric=r.metric, message=f"{r.period_end}: {r.resolution}"))
         elif r.status == "not_verified":
-            issues.append(Issue(kind="missing", fund=fund.ticker, metric=r.metric,
+            issues.append(Issue(kind="missing", fund=r.fund, metric=r.metric,
                                 message=f"{r.period_end}: not shown, failed verification ({r.reason})."))
+        if r.status == "ok" and r.confidence == "low":  # Low is always flagged for review (CLAUDE.md)
+            issues.append(Issue(kind="check_failed", fund=r.fund, metric=r.metric,
+                                message=f"{r.period_end}: shown with Low confidence. {r.confidence_reason}"))
+        if r.method == "computed" and r.status == "ok":
+            issues.append(Issue(kind="computed", fund=r.fund, metric=r.metric, message=r.normalizations[0]))
+        if "not_comparable" in r.flags:
+            issues.append(Issue(kind="not_comparable", fund=r.fund, metric=r.metric, message=r.note))
+        if r.status in ("not_found", "not_verified") and r.metric != "nav_per_share":
+            issues.append(Issue(kind="missing", fund=r.fund, metric=r.metric, message=r.reason))
+
+
+def _competitor(fund, edgar, cache, as_of, window, issues, used, progress):
+    """All rows of one competitor's column, plus its NAV trend."""
+    progress(f"Reading {fund.ticker} filing index…")
+    subs = edgar.submissions(fund.cik)
+    found = _filings_in_window(fund, subs, as_of, window, issues)
+    fetch = _fetcher(fund, edgar, cache, issues, used, progress)
+    nav_records, read = _fund_nav(fund, found, fetch, cache, as_of, window, progress)
+    _record_issues(nav_records.values(), issues)
+    nav_cell = _nav_cell(fund, nav_records, as_of, issues)
+    trend = _nav_trend(fund, nav_records, read, window, issues)
+
+    data = FundData(fund=fund, filings=found, fetch=fetch, cache=cache, as_of=as_of, nav=nav_records,
+                    nav_cell=nav_cell, issues=issues)
+    progress(f"Reading {fund.ticker} leverage, distributions, returns and fee sections…")
+    column = {"nav_per_share": nav_cell}
+    column.update(leverage.records(data))
+    column["distribution_yield"] = distributions.record(data)
+    column.update(returns.records(data))
+    column.update(fees.records(data))
+    for record in column.values():
+        _apply_lag(record, as_of, issues)
+        if record.citation is None:
+            record.citation = searched_citation(data, record.period_end or (nav_cell.period_end if nav_cell.status == "ok" else None))
+    _record_issues([r for m, r in column.items() if m != "nav_per_share"], issues)
+
+    progress(f"Checking {fund.ticker} filing index for amendments…")
+    amendments.flag(subs, fund, list(column.values()) + trend, issues)
+    cited = amendments.cited_accessions(list(column.values()) + trend)
+    for original, amended in amendments.amended_filings(subs, fund.forms):
+        if original.accession in cited:
+            continue  # already flagged on the value itself by amendments.flag
+        names = ", ".join(f"{a.form} {a.accession} (filed {a.filing_date})" for a in amended)
+        issues.append(Issue(kind="amendment", fund=fund.ticker, message=(
+            f"Amendment check: {original.form} {original.accession} (period {original.period}) was amended by "
+            f"{names}. No value shown cites the original.")))
+    return column, trend
 
 
 def run(as_of: date = config.DEFAULT_AS_OF, progress: Callable[[str], None] = print, edgar=None,
@@ -156,41 +212,35 @@ def run(as_of: date = config.DEFAULT_AS_OF, progress: Callable[[str], None] = pr
     trend[apex.FUND] = [apex_by_quarter[q]["nav_per_share"] if q in apex_by_quarter
                         else _missing(apex.FUND, "nav_per_share", "not_found", "No client row.", q) for q in window]
 
+    edgar_error = ""
     try:
         edgar = edgar or Edgar(os.environ.get("SEC_USER_AGENT", ""), cache)
     except EdgarError as exc:
         edgar_error = str(exc)
         edgar = None
     for fund in funds:
-        for metric, _ in ROWS:
-            if metric != "nav_per_share":
-                table[metric][fund.ticker] = _missing(fund.ticker, metric, "not_implemented",
-                                                      "Extraction planned for milestone 2 (after Window 2).")
         if fund.kind == "mreit":
-            table["leverage_regulatory"][fund.ticker] = _missing(
-                fund.ticker, "leverage_regulatory", "not_applicable",
-                "KREF is a REIT, not a 1940 Act fund; asset coverage does not apply.")
             issues.append(Issue(kind="peer_question", fund=fund.ticker, message=(
-                "KREF is a commercial mortgage REIT, not a credit fund: no NAV (book value shown instead), "
+                "KREF is a commercial mortgage REIT, not a credit fund: no NAV (book value per share shown instead), "
                 "no NAV-based return, no 1940 Act leverage limit. CIO to decide whether it stays in the peer set.")))
         try:
             if edgar is None:
                 raise EdgarError(edgar_error)
-            progress(f"Reading {fund.ticker} filing index…")
-            records, read = _fund_nav(fund, edgar, cache, as_of, window, issues, used, progress)
+            column, trend[fund.ticker] = _competitor(fund, edgar, cache, as_of, window, issues, used, progress)
         except Exception as exc:  # any failure stops this fund only; the others still run (review finding 5)
             message = str(exc) if isinstance(exc, EdgarError) else f"Error while reading {fund.ticker} filings: {exc}"
             issues.append(Issue(kind="fetch", fund=fund.ticker, message=message))
-            table["nav_per_share"][fund.ticker] = _missing(fund.ticker, "nav_per_share", "fetch_failed", message)
+            column = {metric: _missing(fund.ticker, metric, "fetch_failed", message) for metric, _ in ROWS}
             trend[fund.ticker] = [_missing(fund.ticker, "nav_per_share", "fetch_failed", message, q) for q in window]
-            continue
-        _record_issues(fund, records, issues)
-        table["nav_per_share"][fund.ticker] = _nav_cell(fund, records, as_of, issues)
-        trend[fund.ticker] = _nav_trend(fund, records, read, window, issues)
+        for metric, _ in ROWS:
+            table[metric][fund.ticker] = column[metric]
 
+    footnotes = [n.format(as_of=as_of) for n in config.FOOTNOTES]
+    if apex_column["net_return_1y"].normalizations:
+        footnotes.append("Apex Ridge 1Y: " + apex_column["net_return_1y"].normalizations[-1])
     bundle = RunBundle(as_of=as_of, created_at=datetime.now(), code_version=_code_version(),
                        funds=[apex.FUND] + [f.ticker for f in funds], rows=ROWS, table=table, trend=trend,
-                       issues=issues, filings=used)
+                       issues=issues, filings=used, footnotes=footnotes)
     out = Path(runs_dir) / bundle.created_at.strftime("%Y%m%d-%H%M%S-%f")
     out.mkdir(parents=True, exist_ok=True)
     (out / "bundle.json").write_text(bundle.model_dump_json(indent=1))

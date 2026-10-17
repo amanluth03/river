@@ -5,6 +5,7 @@ import time
 import requests
 
 from .cache import Cache
+from .config import EDGAR_PAUSE_SECONDS
 
 
 class EdgarError(Exception):
@@ -20,13 +21,13 @@ def index_url(cik: str, accession: str) -> str:
 
 
 class Edgar:
-    def __init__(self, user_agent: str, cache: Cache | None, session_get=None, pause: float = 0.2):
+    def __init__(self, user_agent: str, cache: Cache | None, session_get=None, pause: float = EDGAR_PAUSE_SECONDS):
         if not user_agent or "@" not in user_agent:
             raise EdgarError("SEC_USER_AGENT must be set to a name and contact email, e.g. 'Jane Doe jane@firm.com'")
         self.headers = {"User-Agent": user_agent, "Accept-Encoding": "gzip, deflate"}
         self.cache = cache
         self._get = session_get or requests.get
-        self.pause = pause  # 0.2s between requests keeps us at <= 5/second (SEC limit is 10)
+        self.pause = pause  # seconds between requests (config.EDGAR_PAUSE_SECONDS, with its source)
         self._last = 0.0
 
     def get_bytes(self, url: str) -> bytes:

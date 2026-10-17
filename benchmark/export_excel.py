@@ -1,4 +1,9 @@
-"""Excel export: the deck table plus provenance (one row per value), exceptions and the NAV trend."""
+"""Excel export: the deck table plus provenance (one row per value), exceptions and the NAV trend.
+
+Layout matches the board deck (same rows, same order; decision 17). Every cell that has a source links
+to its filing (decision 21). All sheets are protected against accidental edits, as the locked template
+was (decision 17); protection has no password, so a PM who needs to can still unprotect a sheet.
+"""
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -7,21 +12,22 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from .records import RunBundle, ValueRecord
 
 BOLD = Font(bold=True)
+LINK = Font(color="1F4E79", underline="single")
 HEADER_FILL = PatternFill("solid", fgColor="E8ECF1")
 LETTER = {"high": "H", "medium": "M", "low": "L"}
-
-
 def cell_text(rec: ValueRecord) -> str:
     if rec.value is None:
-        return f"— ({rec.reason})" if rec.reason else "—"
-    parts = [rec.display()]
-    if rec.note:
-        parts.append(rec.note)
+        return f"{rec.gap} ({rec.label})" if rec.label else rec.gap
+    parts = [f"{rec.label}: {rec.display()}" if rec.label else rec.display()]
     if rec.confidence:
         parts.append(f"[{LETTER[rec.confidence]}]")
+    if rec.note:
+        parts.append(f"\n{rec.note}")
     if rec.lag_quarters:
-        parts.append(f"as of {rec.period_end} ({rec.lag_quarters}Q lag)")
-    return " ".join(parts)
+        parts.append(f"\nas of {rec.period_end} ({rec.lag_quarters}Q lag)")
+    if any(f.startswith("Superseded") for f in rec.flags):
+        parts.append("\nSuperseded by amendment: re-check")
+    return " ".join(parts).replace(" \n", "\n")
 
 
 def _header(ws, names):
@@ -35,28 +41,20 @@ def _benchmark(ws, bundle: RunBundle):
     _header(ws, ["Metric"] + bundle.funds)
     for metric, label in bundle.rows:
         row = bundle.table[metric]
-        cells = [cell_text(row[f]) for f in bundle.funds]
-        override = next((row[f].label for f in bundle.funds if row[f].label), None)
-        ws.append([label] + cells)
-        if override:
-            ws.append([f"  note: {override}"] + [""] * len(bundle.funds))
-    as_of_row = []
-    for f in bundle.funds:
-        nav = bundle.table["nav_per_share"][f]
-        as_of_row.append(str(nav.period_end) if nav.period_end else "—")
-    ws.append(["NAV data as of"] + as_of_row)
+        ws.append([label] + [cell_text(row[f]) for f in bundle.funds])
+        for col, fund in enumerate(bundle.funds, start=2):
+            cit = row[fund].citation
+            if cit and cit.url.startswith("http"):
+                cell = ws.cell(row=ws.max_row, column=col)
+                cell.hyperlink, cell.font = cit.url, LINK
+    ws.append(["Data as of"] + [str(bundle.table["nav_per_share"][f].period_end or "—") for f in bundle.funds])
     ws.append([])
-    for note in [
-        f"As-of date {bundle.as_of}. Competitor figures from SEC EDGAR filings, each verified against the source text.",
-        "[H]/[M]/[L] = confidence. See the Provenance sheet for filing, accession, section and source quote.",
-        "CCLFX and TAKIX: Class I. Returns and yields on NAV basis.",
-        "KREF is a mortgage REIT, not a like-for-like peer; book value shown instead of NAV. CIO to decide.",
-        f"Run created {bundle.created_at:%Y-%m-%d %H:%M}, code version {bundle.code_version}.",
-    ]:
-        ws.append([note])
-    ws.column_dimensions["A"].width = 38
+    for i, note in enumerate(bundle.footnotes + [f"Run created {bundle.created_at:%Y-%m-%d %H:%M}, code version "
+                                                 f"{bundle.code_version}."], start=1):
+        ws.append([f"{i}. {note}"])
+    ws.column_dimensions["A"].width = 44
     for col in "BCDEF":
-        ws.column_dimensions[col].width = 30
+        ws.column_dimensions[col].width = 32
     for row in ws.iter_rows(min_row=2):
         for c in row:
             c.alignment = Alignment(wrap_text=True, vertical="top")
@@ -64,20 +62,28 @@ def _benchmark(ws, bundle: RunBundle):
 
 PROVENANCE_COLUMNS = ["Fund", "Metric", "Value", "Unit", "Status", "Reason", "Period end", "Lag (Q)", "Form",
                       "Accession", "Filed", "Document", "URL", "Section", "Row label", "Column", "Source quote",
-                      "Char offset", "SHA-256", "Method", "Confidence", "Confidence reason", "Resolution",
-                      "Flags", "Note", "Other candidates"]
+                      "Char offset", "Find hint", "SHA-256", "Method", "Normalization", "Inputs", "Check",
+                      "Confidence", "Confidence reason", "Resolution", "Flags", "Note", "Other candidates"]
+
+
+def _inputs_text(rec: ValueRecord) -> str:
+    return " | ".join(f"{x.value} = {x.citation.row_label} ({x.citation.form} {x.citation.accession}, "
+                      f"{x.citation.section}, column {x.citation.column_label}): \"{x.citation.quote}\""
+                      for x in rec.inputs)
 
 
 def _provenance_row(rec: ValueRecord) -> list:
     c = rec.citation
     others = "; ".join(f"{x.value} ({x.citation.accession}, {'verified' if x.verified else x.verify_reason})"
-                       for x in rec.candidates if c is None or x.citation.accession != c.accession)
+                       for x in rec.candidates
+                       if c is None or x.citation.accession != c.accession or x.value != rec.value)
+    find = f"search \"{c.row_label}\": match {c.find_match} of {c.find_total}" if c and c.find_match else ""
     return [rec.fund, rec.metric, str(rec.value) if rec.value is not None else "", rec.unit, rec.status, rec.reason,
             str(rec.period_end or ""), rec.lag_quarters, c and c.form, c and c.accession,
             str(c.filing_date or "") if c else "", c and c.document, c and c.url, c and c.section,
-            c and c.row_label, c and c.column_label, c and c.quote, c and c.char_offset, c and c.sha256,
-            rec.method, rec.confidence, rec.confidence_reason, rec.resolution, ", ".join(rec.flags), rec.note,
-            others]
+            c and c.row_label, c and c.column_label, c and c.quote, c and c.char_offset, find, c and c.sha256,
+            rec.method, " ".join(rec.normalizations), _inputs_text(rec), rec.check, rec.confidence,
+            rec.confidence_reason, rec.resolution, ", ".join(rec.flags), rec.note, others]
 
 
 def write(bundle: RunBundle, path: Path) -> Path:
@@ -103,8 +109,11 @@ def write(bundle: RunBundle, path: Path) -> Path:
     for fund, points in bundle.trend.items():
         for p in points:
             c = p.citation
-            trend.append([fund, str(p.period_end), str(p.value) if p.value is not None else "",
+            trend.append([f"{fund} ({p.label})" if p.label else fund, str(p.period_end),
+                          str(p.value) if p.value is not None else "",
                           "ok" if p.status == "ok" else f"{p.status}: {p.reason}", c and c.form,
                           c and c.accession, c and c.quote, p.confidence])
+    for ws in wb.worksheets:
+        ws.protection.sheet = True  # no password: stops accidental edits, like the locked template
     wb.save(path)
     return Path(path)

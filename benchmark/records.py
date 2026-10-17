@@ -1,0 +1,116 @@
+"""The data model. Every number travels as a record with its source, never as a bare value."""
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Literal
+
+from pydantic import BaseModel, Field, model_validator
+
+Status = Literal[
+    "ok",  # verified and shown
+    "not_found",  # we looked where it should be and didn't find it
+    "not_verified",  # found, but failed the verification gate
+    "not_reported",  # the fund doesn't report this
+    "not_applicable",  # the metric doesn't apply to this fund type
+    "not_implemented",  # extraction not built yet (milestone 2)
+    "excluded_by_rule",  # e.g. market-price return, excluded by the NAV-basis rule
+    "fetch_failed",  # EDGAR could not be reached for this fund
+]
+Method = Literal["ixbrl", "table", "regex", "llm", "computed", "client_csv"]
+
+
+class Citation(BaseModel):
+    cik: str
+    form: str
+    accession: str
+    filing_date: date | None = None
+    period_end: date | None = None
+    url: str
+    document: str
+    section: str
+    quote: str
+    row_label: str | None = None
+    column_label: str | None = None
+    char_offset: int | None = None
+    sha256: str | None = None
+    fact_id: str | None = None  # inline XBRL element id, when the value is tagged
+    concept: str | None = None  # inline XBRL concept name, e.g. us-gaap:NetAssetValuePerShare
+
+
+class Candidate(BaseModel):
+    """One value seen in one place. Several candidates may compete for one table cell."""
+    fund: str
+    metric: str
+    value: Decimal
+    unit: str
+    period_end: date
+    method: Method
+    citation: Citation
+    column_index: int | None = None  # which number in the quote is the value (tables)
+    is_amendment: bool = False
+    reconciliation: str | None = None  # description of the check that was run
+    reconciliation_ok: bool | None = None
+    verified: bool = False
+    verify_reason: str = ""
+
+
+class ValueRecord(BaseModel):
+    fund: str
+    metric: str
+    value: Decimal | None
+    unit: str
+    status: Status
+    reason: str = ""
+    label: str | None = None  # overrides the row label, e.g. KREF book value
+    note: str = ""  # short text shown with the value, e.g. "hurdle 6.00%"
+    period_end: date | None = None
+    lag_quarters: int | None = None
+    citation: Citation | None = None
+    method: Method | None = None
+    confidence: Literal["high", "medium", "low"] | None = None
+    confidence_reason: str = ""
+    candidates: list[Candidate] = Field(default_factory=list)
+    resolution: str = ""
+    flags: list[str] = Field(default_factory=list)
+    normalizations: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _status_matches_value(self):
+        if self.status == "ok":
+            if self.value is None:
+                raise ValueError("status 'ok' needs a value")
+            if self.citation is None:
+                raise ValueError("a shown value must carry a citation")
+        elif self.value is not None:
+            raise ValueError("a missing value must not carry a number")
+        return self
+
+    def display(self) -> str:
+        if self.value is None:
+            return "—"
+        if self.unit == "usd":
+            return f"${self.value:,.2f}"
+        if self.unit == "pct":
+            return f"{self.value:.2f}%"
+        return f"{self.value:.2f}x"
+
+
+class Issue(BaseModel):
+    """One line in the Exceptions list."""
+    kind: Literal["conflict", "missing", "lag", "computed", "not_like_for_like",
+                  "client_data", "peer_question", "data_quality", "fetch"]
+    fund: str
+    metric: str | None = None
+    message: str
+    details: dict = Field(default_factory=dict)
+
+
+class RunBundle(BaseModel):
+    as_of: date
+    created_at: datetime
+    code_version: str = ""
+    funds: list[str]
+    rows: list[tuple[str, str]]  # (metric key, display label), deck order
+    table: dict[str, dict[str, ValueRecord]]  # metric -> fund -> record
+    trend: dict[str, list[ValueRecord]]  # fund -> NAV points in the window
+    issues: list[Issue]
+    filings: list[dict] = Field(default_factory=list)  # every filing used, with hash

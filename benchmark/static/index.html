@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Peer benchmark</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="title">
+      <h1>Peer benchmark</h1>
+      <p id="run-info" class="muted">No run yet.</p>
+    </div>
+    <div class="actions">
+      <label for="as-of" class="muted">As of</label>
+      <select id="as-of"></select>
+      <button id="run-btn" class="primary">Run</button>
+      <a id="export-btn" class="button" href="/api/export.xlsx">Export to Excel</a>
+    </div>
+  </header>
+  <p id="status" class="status" hidden></p>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="table" aria-selected="true">Table</button>
+    <button role="tab" data-tab="exceptions" aria-selected="false">Exceptions <span id="exc-count" class="count"></span></button>
+    <button role="tab" data-tab="trend" aria-selected="false">NAV trend</button>
+  </nav>
+
+  <main>
+    <section id="tab-table" class="tab">
+      <table id="bench" class="bench"></table>
+      <p class="legend muted">
+        <span class="dot high"></span>High <span class="dot medium"></span>Medium <span class="dot low"></span>Low
+        &nbsp;·&nbsp; Click any value to see its source. &nbsp;·&nbsp; "—" means no verified value; click for the reason.
+      </p>
+    </section>
+
+    <section id="tab-exceptions" class="tab" hidden>
+      <div id="exceptions"></div>
+    </section>
+
+    <section id="tab-trend" class="tab" hidden>
+      <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
+      <p class="legend muted">Points appear only where a filing reports NAV. CCLFX and TAKIX report semi-annually, so their
+        other quarters are gaps, not estimates. KREF shows book value per share (it does not report NAV).</p>
+      <table id="trend-table" class="bench small"></table>
+    </section>
+  </main>
+
+  <aside id="panel" class="panel" hidden aria-live="polite">
+    <button id="panel-close" class="close" aria-label="Close">×</button>
+    <div id="panel-body"></div>
+  </aside>
+
+  <script src="/static/chart.umd.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
